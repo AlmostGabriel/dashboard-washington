@@ -160,6 +160,16 @@ await T('redefinir senha exige código do cargo certo', async () => {
   igual((await chamar('POST', '/acesso/entrar', { email: 'm@t.com', senha: 'senha123' })).status, 401, 'senha antiga recusada:');
   igual((await chamar('POST', '/acesso/entrar', { email: 'm@t.com', senha: 'nova12345' })).status, 200, 'senha nova aceita:');
 });
+await T('troca a própria senha dentro do sistema', async () => {
+  const nova = await (await chamar('POST', '/acesso/criar', { codigo: 'WASH-DEV-4827', nome: 'Troca', email: 'troca@t.com', senha: 'senhaAntiga1' })).json();
+  igual((await chamar('POST', '/acesso/senha', { atual: 'errada', nova: 'senhaNova123' }, nova.token)).status, 403, 'senha atual errada:');
+  igual((await chamar('POST', '/acesso/senha', { atual: 'senhaAntiga1', nova: '123' }, nova.token)).status, 400, 'nova senha curta:');
+  igual((await chamar('POST', '/acesso/senha', { atual: 'senhaAntiga1', nova: 'senhaAntiga1' }, nova.token)).status, 400, 'nova igual à atual:');
+  igual((await chamar('POST', '/acesso/senha', { atual: 'senhaAntiga1', nova: 'senhaNova123' }, nova.token)).status, 200);
+  igual((await chamar('POST', '/acesso/entrar', { email: 'troca@t.com', senha: 'senhaAntiga1' })).status, 401, 'senha antiga recusada:');
+  igual((await chamar('POST', '/acesso/entrar', { email: 'troca@t.com', senha: 'senhaNova123' })).status, 200, 'senha nova aceita:');
+  igual((await chamar('GET', '/dados', null, nova.token)).status, 200, 'quem trocou continua conectado:');
+});
 await T('CORS responde ao preflight', async () => {
   const r = await worker.fetch(new Request('https://api.local/dados', { method: 'OPTIONS', headers: { Origin: ORIGEM } }), env);
   igual(r.status, 204); igual(r.headers.get('Access-Control-Allow-Origin'), ORIGEM);

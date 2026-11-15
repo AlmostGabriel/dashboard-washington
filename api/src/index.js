@@ -164,6 +164,23 @@ async function redefinir(req, env) {
   return json(req, { token, expira_em: exp, usuario: { id: u.id, email: u.email, apelido: u.apelido, nome: u.nome, cargo: u.cargo } });
 }
 
+async function trocarSenha(req, env, ctx) {
+  const { atual, nova } = await req.json();
+  if (String(nova || '').length < 6) return erro(req, 'A nova senha precisa ter ao menos 6 caracteres.');
+  const u = await env.DB.prepare(`SELECT * FROM usuarios WHERE id = ?`).bind(ctx.id).first();
+  if (!u) return erro(req, 'Conta não encontrada.', 404);
+  if (await derivar(String(atual || ''), u.sal) !== u.hash) return erro(req, 'A senha atual está incorreta.', 403);
+  if (String(atual) === String(nova)) return erro(req, 'A nova senha precisa ser diferente da atual.');
+  const sal = novoSal();
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE usuarios SET sal = ?, hash = ? WHERE id = ?`).bind(sal, await derivar(nova, sal), u.id),
+    /* derruba as outras sessões, mantendo a de quem está trocando */
+    env.DB.prepare(`DELETE FROM sessoes WHERE usuario_id = ? AND token != ?`).bind(u.id, ctx.token),
+  ]);
+  await registrar(env, ctx, 'senha_trocada', 'usuario', u.id, null, null, 'trocou a própria senha');
+  return json(req, { ok: true });
+}
+
 /* ---------------- dados ---------------- */
 async function baixar(req, env, ctx) {
   const url = new URL(req.url);
@@ -301,6 +318,7 @@ export default {
         return json(req, { ok: true });
       }
 
+      if (p === '/acesso/senha' && m === 'POST') return await trocarSenha(req, env, ctx);
       if (p === '/dados' && m === 'GET') return await baixar(req, env, ctx);
       if (p === '/registros' && m === 'POST') {
         if (!podeEscrever(ctx)) return erro(req, 'Seu cargo não pode gravar.', 403);
