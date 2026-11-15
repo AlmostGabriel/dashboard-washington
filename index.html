@@ -1665,6 +1665,21 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 .lgpw--claro .lgeye.is-on { color: var(--accent-fg); background: var(--accent-soft); }
 .pwform .lg__err { background: var(--critical-bg); border-color: color-mix(in srgb, var(--critical) 34%, transparent); color: var(--critical); }
 
+/* cartão do usuário no menu: foto e nome do perfil */
+.sb__user { display: flex; align-items: stretch; gap: 2px; width: 100%; margin-bottom: 6px; padding: 0; background: none; border: 0; }
+.sb__user__me { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 7px 8px; border: 0; border-radius: var(--r);
+  background: var(--sb-700); color: rgba(255,255,255,.84); font: inherit; text-align: left; cursor: pointer; transition: background .15s; }
+.sb__user__me:hover { background: rgba(255,255,255,.1); }
+.sb__user__me > div { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sb__user__me b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb__user__me span { font-size: 10.5px; color: rgba(255,255,255,.5); }
+.sb__user__me .avatar { flex: none; border-radius: 50%; object-fit: cover; }
+.sb__user__out { display: grid; place-items: center; width: 32px; flex: none; padding: 0; border: 0; border-radius: var(--r);
+  background: var(--sb-700); color: rgba(255,255,255,.52); cursor: pointer; transition: background .15s, color .15s; }
+.sb__user__out:hover { background: rgba(224,78,78,.18); color: #FF9D9D; }
+.sb--collapsed .sb__user__me > div, .sb--collapsed .sb__user__out { display: none; }
+.sb--collapsed .sb__user__me { justify-content: center; padding: 7px 0; }
+
 </style>
 </head>
 <body>
@@ -1674,7 +1689,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 <div id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:40px;font-family:sans-serif">Ative o JavaScript para utilizar o Dashboard Washington.</p></noscript>
 <script>
-const APP_VERSION = {"v": "1.6.0", "build": "15/11/2026 04:30"};
+const APP_VERSION = {"v": "1.6.1", "build": "15/11/2026 09:42"};
 const API_BASE = 'https://dashboard-washington-api.gabrielcreates.workers.dev';
 /* ---- 00-brand.js ---- */
 /* Logo do desenvolvedor (Gabriel sistemas) */
@@ -8880,12 +8895,14 @@ const App = (() => {
         ${NAV.map((g) => { const its = g.items.filter((m) => AUTH.pode(m.id)); return its.length ? `<div class="nav__g"><div class="nav__gt"><span>${U.esc(g.group)}</span></div>${its.map(item).join('')}</div>` : ''; }).join('')}
       </nav>
       <div class="sb__foot">
-        ${AUTH.atual() ? `<button class="sb__user" data-sair data-tip="Sair do sistema"><span class="avatar avatar--txt" style="width:26px;height:26px;font-size:10px">${U.esc(initials(AUTH.atual().nome || AUTH.atual().email))}</span><div><b>${U.esc(AUTH.atual().nome || AUTH.atual().email)}</b><span>${U.esc(AUTH.papelLabel())}</span></div>${U.icon('logout', 15)}</button>` : ''}
+        ${AUTH.atual() ? (() => { const pr = profile(); return `<div class="sb__user"><button class="sb__user__me" data-profile data-tip="Meu perfil">${avatar(28)}<div><b>${U.esc(pr.name || AUTH.atual().email)}</b><span>${U.esc(AUTH.papelLabel())}</span></div></button><button class="sb__user__out" data-sair data-tip="Sair do sistema">${U.icon('logout', 15)}</button></div>`; })() : ''}
         ${NUVEM.ligada() ? '<div data-sync></div>' : `<div class="sb__status" data-tip="Dados armazenados somente neste navegador"><span class="sb__dot"></span><div class="sb__st"><b>Armazenamento local</b><span data-usage>${U.fmtNum(Store.countAll())} registros</span></div></div>`}
         <button class="sb__status sb__status--btn ${stale ? 'is-warn' : ''}" data-nav="backup" ${collapsed ? 'data-tip="Backup"' : ''}>${U.icon('backup', 16)}<div class="sb__st"><b>Último backup</b><span>${last ? U.relTime(last) : 'nunca realizado'}</span></div></button>
         <div class="sb__actions">${AUTH.pode('configuracoes') ? `<button class="sb__btn" data-nav="configuracoes" data-tip="Configurações">${U.icon('settings', 17)}</button>` : ''}<button class="sb__btn sb__collapse" data-collapse data-tip="${collapsed ? 'Expandir menu' : 'Recolher menu'} (Ctrl+B)">${U.icon('panel', 17)}<span>${collapsed ? '' : 'Recolher'}</span></button></div>
       </div>`;
     sb.querySelectorAll('[data-nav]').forEach((a) => a.onclick = (e) => { e.preventDefault(); go(a.dataset.nav); });
+    const meu = sb.querySelector('.sb__user__me');
+    if (meu) meu.onclick = (e) => profileMenu(e.currentTarget);
     const sair = sb.querySelector('[data-sair]');
     if (sair) sair.onclick = () => UI.confirm({ title: 'Sair do sistema', text: 'Você vai precisar entrar de novo com e-mail e senha. Seus dados continuam salvos neste aparelho.', confirmLabel: 'Sair' }).then((y) => y && AUTH.sair());
     sb.querySelector('[data-collapse]').onclick = toggleSidebar;
@@ -9011,7 +9028,7 @@ const App = (() => {
     m.foot.querySelector('[data-yes]').onclick = async () => {
       m.body.querySelectorAll('[data-k]').forEach((i) => { pr[i.dataset.k] = i.value.trim(); });
       if (pr.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pr.email)) return UI.toast('Informe um e-mail válido.', 'warn');
-      await Store.set('profile', pr, true); renderTopbar(); m.close(); UI.toast('Perfil salvo.', 'ok');
+      await Store.set('profile', pr, true); renderTopbar(); renderSidebar(); m.close(); UI.toast('Perfil salvo.', 'ok');
     };
   }
 
