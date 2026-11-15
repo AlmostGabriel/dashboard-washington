@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS usuarios (
   id          TEXT PRIMARY KEY,
   email       TEXT NOT NULL UNIQUE,
+  apelido     TEXT,
   nome        TEXT NOT NULL,
   cargo       TEXT NOT NULL CHECK (cargo IN ('dev','gestor','operador')),
   sal         TEXT NOT NULL,
@@ -15,6 +16,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   criado_em   INTEGER NOT NULL,
   ultimo_acesso INTEGER
 );
+
+-- Nome de usuário é opcional, mas quando existe não se repete.
+CREATE UNIQUE INDEX IF NOT EXISTS ix_usuarios_apelido ON usuarios(apelido);
 
 -- Sessões abertas. Permite encerrar o acesso de alguém na hora.
 CREATE TABLE IF NOT EXISTS sessoes (
