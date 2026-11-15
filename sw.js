@@ -2,7 +2,7 @@
    Guarda o app no navegador para funcionar offline e troca de versão
    somente quando o usuário confirma. Nenhum dado do usuário passa por aqui:
    as planilhas e registros ficam no IndexedDB, que o service worker não toca. */
-const VERSAO = '2.1.1-teste';
+const VERSAO = '1.8.0';
 const CACHE = 'dashwash-' + VERSAO;
 const ARQUIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
