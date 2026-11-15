@@ -32,9 +32,11 @@ const novoSal = () => hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
 const novoToken = () => hex(crypto.getRandomValues(new Uint8Array(32)).buffer);
 const normEmail = (v) => String(v || '').trim().toLowerCase();
 
+/* aceita o endereço de produção e as prévias que o Pages cria por branch */
+const origemValida = (o) => ORIGENS.includes(o) || /^https:\/\/[a-z0-9-]+\.dashboard-washington\.pages\.dev$/.test(o);
 function cors(req) {
   const o = req.headers.get('Origin') || '';
-  const permitida = ORIGENS.includes(o) ? o : ORIGENS[0];
+  const permitida = origemValida(o) ? o : ORIGENS[0];
   return {
     'Access-Control-Allow-Origin': permitida,
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
