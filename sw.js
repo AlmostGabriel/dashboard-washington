@@ -1,8 +1,8 @@
-/* Service worker do Dashboard Washington.
+/* Service worker do sistema.
    Guarda o app no navegador para funcionar offline e troca de versão
    somente quando o usuário confirma. Nenhum dado do usuário passa por aqui:
    as planilhas e registros ficam no IndexedDB, que o service worker não toca. */
-const VERSAO = '1.6.1';
+const VERSAO = '1.7.0';
 const CACHE = 'dashwash-' + VERSAO;
 const ARQUIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
