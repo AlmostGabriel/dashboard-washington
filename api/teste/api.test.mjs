@@ -36,7 +36,7 @@ console.log('\n== acesso ==');
 let dev, gestor, oper;
 
 await T('cria conta de dev com código válido', async () => {
-  const r = await chamar('POST', '/acesso/criar', { codigo: 'wash-dev-4827', nome: 'Gabriel', email: 'G@Teste.com', senha: 'senha123' });
+  const r = await chamar('POST', '/acesso/criar', { codigo: 'wash-dev-4827', nome: 'Gabriel', email: 'G@Teste.com', apelido: 'Gabriel', senha: 'senha123' });
   igual(r.status, 201); dev = (await r.json());
   igual(dev.usuario.cargo, 'dev'); igual(dev.usuario.email, 'g@teste.com', 'e-mail normalizado:');
 });
@@ -64,6 +64,22 @@ await T('convite de uso único esgota', async () => {
 await T('entra com senha certa', async () => {
   const r = await chamar('POST', '/acesso/entrar', { email: 'g@teste.com', senha: 'senha123' });
   igual(r.status, 200); const j = await r.json(); if (!j.token) throw new Error('sem token');
+});
+await T('entra pelo nome de usuário', async () => {
+  const r = await chamar('POST', '/acesso/entrar', { identificador: 'GABRIEL', senha: 'senha123' });
+  igual(r.status, 200); const j = await r.json(); igual(j.usuario.apelido, 'gabriel');
+});
+await T('recusa nome de usuário repetido', async () => {
+  const r = await chamar('POST', '/acesso/criar', { codigo: 'WASH-DEV-4827', nome: 'Outro', email: 'outro@t.com', apelido: 'gabriel', senha: 'senha123' });
+  igual(r.status, 400);
+});
+await T('recusa nome de usuário com formato inválido', async () => {
+  const r = await chamar('POST', '/acesso/criar', { codigo: 'WASH-DEV-4827', nome: 'X', email: 'fmt@t.com', apelido: 'a b!', senha: 'senha123' });
+  igual(r.status, 400);
+});
+await T('nome de usuário é opcional', async () => {
+  const r = await chamar('POST', '/acesso/criar', { codigo: 'WASH-DEV-4827', nome: 'Sem Apelido', email: 'sem@t.com', senha: 'senha123' });
+  igual(r.status, 201);
 });
 await T('recusa senha errada', async () => {
   const r = await chamar('POST', '/acesso/entrar', { email: 'g@teste.com', senha: 'errada' });
@@ -119,7 +135,7 @@ console.log('\n== contas e histórico ==');
 await T('operador NÃO lista contas', async () => igual((await chamar('GET', '/usuarios', null, oper.token)).status, 403));
 await T('dev lista contas e convites', async () => {
   const j = await (await chamar('GET', '/usuarios', null, dev.token)).json();
-  igual(j.usuarios.length, 3); igual(j.convites.length, 3);
+  igual(j.usuarios.length, 4); igual(j.convites.length, 3);
 });
 await T('dev desativa conta e derruba a sessão', async () => {
   const alvo = (await (await chamar('GET', '/usuarios', null, dev.token)).json()).usuarios.find((u) => u.email === 'j@t.com');
