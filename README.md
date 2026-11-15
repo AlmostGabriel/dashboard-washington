@@ -5,7 +5,7 @@ inteiro dentro do navegador. **Nenhum dado sai do computador do usuário**: as p
 importadas e todos os registros ficam no IndexedDB do próprio navegador. Este repositório
 guarda apenas o código do sistema.
 
-Desenvolvido por **@DEV01GABRIELCREATES**. Uso permitido somente com autorização do desenvolvedor.
+Desenvolvido por **@GabrielCreates**. Uso permitido somente com autorização do desenvolvedor.
 
 ---
 
