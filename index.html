@@ -1686,6 +1686,11 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 .lg__slash { stroke-dasharray: 52; stroke-dashoffset: 52; animation: lgdraw .55s cubic-bezier(.65,0,.35,1) .85s forwards; }
 .lg__w { stroke-dasharray: 52; stroke-dashoffset: 52; animation: lgdraw .7s cubic-bezier(.65,0,.35,1) .25s forwards; }
 @media (prefers-reduced-motion: reduce) { .lg__w2, .lg__slash { animation: none; stroke-dashoffset: 0; } }
+.migra { display: flex; align-items: center; gap: var(--s-5); flex-wrap: wrap; }
+.migra > div { flex: 1 1 320px; }
+.migra p { margin: 0 0 4px; font-size: var(--fs-sm); }
+.pbar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin: var(--s-3) 0 6px; }
+.pbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
 
 </style>
 </head>
@@ -1696,7 +1701,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 <div id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:40px;font-family:sans-serif">Ative o JavaScript para utilizar o sistema.</p></noscript>
 <script>
-const APP_VERSION = {"v": "1.7.0", "build": "15/11/2026 09:44"};
+const APP_VERSION = {"v": "1.7.1", "build": "15/11/2026 10:04"};
 const API_BASE = 'https://dashboard-washington-api.gabrielcreates.workers.dev';
 /* ---- 00-brand.js ---- */
 /* Logo do desenvolvedor (Gabriel sistemas) */
@@ -2098,7 +2103,7 @@ const SCHEMA = (() => {
       description: 'Carteira de pedidos com situação comercial, de produção e de entrega.',
       fields: [
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'num pedido', 'numero pedido', 'pedido', 'nr pedido', 'cod pedido', 'pedido n', 'n do pedido', 'numero do pedido', 'pv', 'ov', 'ordem de venda']),
-        F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']),
+        { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']), semForm: true },
         F('data_pedido', 'Data do pedido', 'date', ['data pedido', 'data do pedido', 'emissao pedido', 'data emissao', 'data', 'dt pedido', 'data venda']),
         F('codigo_cliente', 'Código do cliente', 'id', ['cod cliente', 'codigo cliente', 'codigo do cliente', 'id cliente', 'cliente cod']),
         F('cliente', 'Cliente', 'text', ['cliente', 'razao social', 'nome cliente', 'nome do cliente', 'comprador']),
@@ -2125,7 +2130,7 @@ const SCHEMA = (() => {
       description: 'Registros de vendas confirmadas (cada linha representa venda efetivada).',
       fields: [
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'numero pedido', 'pedido', 'nr pedido', 'numero do pedido']),
-        F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia']),
+        { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia']), semForm: true },
         F('data_venda', 'Data da venda', 'date', ['data venda', 'data', 'data da venda', 'emissao', 'data pedido']),
         F('codigo_cliente', 'Código do cliente', 'id', ['cod cliente', 'codigo cliente', 'codigo do cliente']),
         F('cliente', 'Cliente', 'text', ['cliente', 'razao social', 'nome cliente']),
@@ -3741,6 +3746,34 @@ const NUVEM = (() => {
   const listarUsuarios = () => chamar('/usuarios');
   const mudarUsuario = (id, patch) => chamar('/usuarios/' + encodeURIComponent(id), { metodo: 'PATCH', corpo: patch });
 
+  /* ---------------- migração ----------------
+     Sobe para o banco os registros que só existem neste navegador. Usa o
+     mesmo id, então subir duas vezes não duplica: a segunda apenas
+     regrava o que já está lá. */
+  async function migrar(aoAndar) {
+    if (!ligada() || !sessao) throw new Error('Entre na base compartilhada antes de migrar.');
+    const locais = [];
+    for (const e of Object.keys(SCHEMA.ENTITIES)) for (const r of Store.all(e)) locais.push(r);
+    if (!locais.length) return { enviados: 0, total: 0 };
+    const TAM = 400;
+    let enviados = 0;
+    for (let i = 0; i < locais.length; i += TAM) {
+      const parte = locais.slice(i, i + TAM);
+      await chamar('/registros', { metodo: 'POST', corpo: { registros: parte.map(paraNuvem) } });
+      enviados += parte.length;
+      if (aoAndar) aoAndar(enviados, locais.length);
+    }
+    /* as configurações compartilhadas vão junto */
+    for (const chave of ['metas', 'moduleNames', 'rules', 'statusLabels', 'customFields', 'loadModels', 'vehicles', 'docCategories']) {
+      const v = Store.get(chave);
+      if (v !== undefined && v !== null) { try { await chamar('/ajustes/' + encodeURIComponent(chave), { metodo: 'POST', corpo: { valor: v } }); } catch (e) { /* configuração que o cargo não pode mudar */ } }
+    }
+    await DB.put('meta', { key: 'nuvem.migrado', value: Date.now() });
+    await sincronizar({ completa: true });
+    return { enviados, total: locais.length };
+  }
+  const jaMigrou = async () => !!(await DB.get('meta', 'nuvem.migrado'));
+
   /* ---------------- ciclo de vida ---------------- */
   function iniciar() {
     if (!ligada()) return;
@@ -3753,7 +3786,7 @@ const NUVEM = (() => {
   return {
     ligada, BASE, iniciar, situacao, aoMudar,
     carregarSessao, entrar, criarConta, redefinir, trocarSenha, sair, usuario,
-    sincronizar, enfileirar, paraNuvem,
+    sincronizar, enfileirar, paraNuvem, migrar, jaMigrou,
     lixeira, restaurarItem, historico, listarUsuarios, mudarUsuario,
   };
 })();
@@ -4587,7 +4620,8 @@ const UI = (() => {
   }
 
   function recordForm(entity, rec, { onSaved, title } = {}) {
-    const fields = SCHEMA.fields(entity);
+    /* semForm: campo que vem das planilhas mas não se digita à mão */
+    const fields = SCHEMA.fields(entity).filter((f) => !f.semForm || (rec && !U.isEmpty(rec.data[f.key])));
     const E = SCHEMA.ENTITIES[entity];
     const isNew = !rec;
     const form = U.h(`<form class="form-grid" autocomplete="off">${fields.map((f) => fieldInput(f, rec ? rec.data[f.key] : (f.key === E.dateField ? U.today() : null))).join('')}</form>`);
@@ -6774,6 +6808,7 @@ Views.backup = {
     el.innerHTML = V.pageHead({ eyebrow: 'Administração', title: 'Backup e restauração', subtitle: 'Exporte um arquivo completo com todos os dados locais e restaure-o neste ou em outro computador quando precisar.' }) +
       `<div class="grid12">
         ${V.card({ cls: 'span6', title: 'Exportar backup completo', subtitle: 'Arquivo .json com tudo o que está armazenado', body: `<ul class="checklist">${[['database', `${U.fmtNum(Store.countAll())} registros importados e manuais, com edições e rastreabilidade`], ['sheets', `${Store.listSources(true).length} fonte(s) de dados com mapeamentos`], ['docs', `${docs.length} documento(s) e links (${U.fmtBytes(U.sum(docs, (d) => d.size || 0))})`], ['settings', 'Configurações, personalização e visualizações salvas'], ['clock', `${U.fmtNum(Store.getHistory().length)} evento(s) de histórico`]].map(([i, t]) => `<li>${U.icon(i, 16)}${t}</li>`).join('')}</ul><div class="row-between"><span class="muted">Último backup: <b>${last ? U.fmtDateTime(last) : 'nunca realizado'}</b></span><button class="btn btn--primary" data-exp>${U.icon('download', 16)}Exportar backup</button></div>` })}
+        ${(typeof NUVEM !== 'undefined' && NUVEM.ligada() && NUVEM.usuario()) ? V.card({ cls: 'span12', title: 'Enviar meus dados para a base compartilhada', subtitle: 'Sobe os registros deste navegador para o banco, onde todos enxergam', body: `<div class="migra"><div><p>Este navegador tem <b>${U.fmtNum(Store.countAll())}</b> registro(s). Enviar coloca todos no banco, com o mesmo identificador — se você enviar duas vezes, nada duplica.</p><p class="hint">Depois disso, qualquer pessoa autorizada enxerga esses dados em qualquer aparelho.</p></div><button class="btn btn--primary" data-migra>${U.icon('upload', 15)}Enviar para a base compartilhada</button></div><div data-migraprog hidden><div class="pbar"><i></i></div><p class="hint" data-migratxt></p></div>` }) : ''}
         ${!AUTH.podeAcao('restaurar') ? V.card({ cls: 'span6', title: 'Restaurar backup', subtitle: 'Indisponível para o seu cargo', body: `<div class="callout callout--info">${U.icon('lock', 16)}<div>Restaurar um backup substitui <b>todos</b> os dados deste navegador. Só o Desenvolvedor e o Gestor podem fazer isso. Você pode exportar backups normalmente.</div></div>` }) : V.card({ cls: 'span6', title: 'Restaurar backup', subtitle: 'Substitui todos os dados atuais pelos do arquivo', body: `<div class="dropzone dropzone--slim" data-dz>${U.icon('upload', 18)}<span>Selecione ou arraste um arquivo de backup (.json)</span><input type="file" accept=".json,application/json" hidden data-file></div><div data-info></div><div class="callout callout--warn">${U.icon('alert', 16)}<div>A restauração <b>apaga os dados atuais</b> deste navegador antes de carregar o backup. Exporte um backup do estado atual antes, se necessário.</div></div>` })}
         ${V.card({ cls: 'span12', title: 'Sobre o armazenamento local', body: `<div class="callout callout--info">${U.icon('info', 16)}<div>Os dados ficam no IndexedDB deste navegador, neste computador. Eles podem ser perdidos se os dados de navegação forem apagados, se o perfil do navegador for removido ou em modo anônimo. Não há sincronização entre computadores — para usar em outra máquina, exporte e restaure um backup.</div></div><div data-storage class="muted">Calculando uso do armazenamento…</div>` })}
         ${V.card({ cls: 'span12', title: 'Histórico de atividades', subtitle: 'Importações, edições, exclusões e restaurações', body: '<div data-hist></div>' })}
@@ -6789,6 +6824,17 @@ Views.backup = {
         UI.toast('Backup exportado. Guarde o arquivo em local seguro.', 'ok'); App.refreshChrome();
       } catch (err) { UI.toast('Falha ao gerar backup: ' + err.message, 'err'); }
       p.close(); App.refresh();
+    };
+    const bm = el.querySelector('[data-migra]');
+    if (bm) bm.onclick = async () => {
+      if (!await UI.confirm({ title: 'Enviar para a base compartilhada', text: `Os ${U.fmtNum(Store.countAll())} registros deste navegador vão para o banco, onde as outras pessoas autorizadas também enxergam. Nada é apagado daqui, e enviar de novo não duplica.`, confirmLabel: 'Enviar' })) return;
+      const prog = el.querySelector('[data-migraprog]'), barra = prog.querySelector('.pbar i'), txt = el.querySelector('[data-migratxt]');
+      bm.disabled = true; prog.hidden = false;
+      try {
+        const r = await NUVEM.migrar((feito, total) => { barra.style.width = ((feito / total) * 100).toFixed(1) + '%'; txt.textContent = `${U.fmtNum(feito)} de ${U.fmtNum(total)} enviados…`; });
+        txt.textContent = `${U.fmtNum(r.enviados)} registro(s) no banco.`;
+        UI.toast('Dados enviados para a base compartilhada.', 'ok');
+      } catch (e) { bm.disabled = false; txt.textContent = ''; UI.toast(e.message || 'Não foi possível enviar.', 'warn'); }
     };
     const dz = el.querySelector('[data-dz]'), fi = el.querySelector('[data-file]');
     if (dz && fi) {
@@ -6940,16 +6986,139 @@ Views.configuracoes = {
 
 /* ---- 14b-views-usuarios.js ---- */
 /* =========================================================================
-   14b · USUÁRIOS E CARGOS (somente Desenvolvedor)
-   Mostra as contas criadas neste aparelho e os códigos de convite que
-   liberam cada cargo. As contas e os dados vivem em cada navegador, então
-   esta lista é a deste aparelho, não de todos.
+   14b · USUÁRIOS, HISTÓRICO E LIXEIRA (somente Desenvolvedor)
+   Com base compartilhada, mostra TODAS as contas, tudo o que cada pessoa
+   fez e o que foi removido, lendo do servidor. Sem base compartilhada,
+   mostra apenas o que existe neste navegador, porque é tudo o que há.
    ========================================================================= */
 Views.usuarios = {
   title: 'Usuários e cargos', group: 'Administração',
+  _aba: 'contas',
+
   async render(el) {
     if (!AUTH.ehDev()) { el.innerHTML = `<div class="empty">${U.icon('lock', 28)}<h3>Área restrita</h3><p>Somente o Desenvolvedor pode ver esta tela.</p></div>`; return; }
-    const lista = await AUTH.contas();
+    const naNuvem = typeof NUVEM !== 'undefined' && NUVEM.ligada() && !!NUVEM.usuario();
+    const abas = [['contas', 'Contas', 'clients'], ...(naNuvem ? [['historico', 'Histórico', 'clock'], ['lixeira', 'Lixeira', 'trash']] : []), ['convites', 'Convites', 'target']];
+    if (!abas.some((a) => a[0] === this._aba)) this._aba = 'contas';
+    el.innerHTML = `<div class="combochips" role="tablist" aria-label="Seções">${abas.map(([k, r, ic]) => `<button class="chipbtn ${k === this._aba ? 'is-on' : ''}" data-aba="${k}" role="tab" aria-selected="${k === this._aba}">${U.icon(ic, 14)}${r}</button>`).join('')}</div>
+      <div data-corpo><p class="hint">Carregando…</p></div>`;
+    el.querySelectorAll('[data-aba]').forEach((b) => b.onclick = () => { this._aba = b.dataset.aba; this.render(el); });
+    const corpo = el.querySelector('[data-corpo]');
+    try {
+      if (this._aba === 'contas') await this.contas(corpo, naNuvem);
+      else if (this._aba === 'historico') await this.historico(corpo);
+      else if (this._aba === 'lixeira') await this.lixeira(corpo);
+      else this.convites(corpo, naNuvem);
+    } catch (e) {
+      corpo.innerHTML = `<div class="callout callout--warn">${U.icon('alert', 16)}<div><b>Não foi possível carregar.</b> ${U.esc(e.message || String(e))}</div></div>`;
+    }
+  },
+
+  /* ---------------- contas ---------------- */
+  async contas(box, naNuvem) {
+    const CARGOS = { dev: 'Desenvolvedor', gestor: 'Gestor', operador: 'Operador' };
+    const eu = AUTH.atual();
+    const dia = (ms) => U.fmtDate(new Date(ms).toISOString().slice(0, 10));
+
+    if (!naNuvem) {
+      const lista = await AUTH.contas();
+      box.innerHTML = `<div class="callout callout--warn">${U.icon('alert', 16)}<div><b>Este aparelho não está na base compartilhada.</b> Aqui aparecem só as contas criadas neste navegador, e não há registro do que as outras pessoas fizeram — os dados delas nunca saem do navegador delas. Com a base compartilhada, esta tela passa a mostrar todas as contas, tudo o que cada uma alterou e o que foi removido.</div></div>
+      <div class="card"><div class="card__h"><h2>Contas neste aparelho</h2><span class="muted">Cada navegador tem as próprias contas</span></div>
+      <div class="card__b">${lista.length ? `<div class="rtable-wrap"><table class="ltable"><thead><tr><th>Pessoa</th><th>Entra com</th><th>Cargo</th><th>Convite usado</th><th>Criada em</th><th>Último acesso</th><th></th></tr></thead>
+      <tbody>${lista.map((u) => `<tr><td><b>${U.esc(u.nome || '—')}</b>${eu && u.id === eu.id ? ' <span class="mtag is-ok">você</span>' : ''}</td>
+        <td>${U.esc(u.email)}${u.apelido ? `<br><small class="muted">ou <code>${U.esc(u.apelido)}</code></small>` : ''}</td>
+        <td>${U.esc(CARGOS[u.role] || u.role)}</td><td>${u.convite ? U.esc(u.convite) : '<span class="muted">—</span>'}</td>
+        <td>${dia(u.criadoEm)}</td><td>${u.ultimoAcesso ? U.relTime(u.ultimoAcesso) : '—'}</td>
+        <td>${eu && u.id === eu.id ? '' : `<button class="btn btn--ghost btn--sm" data-del="${u.id}">${U.icon('trash', 14)}Remover</button>`}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="empty">${U.icon('clients', 26)}<h3>Nenhuma conta ainda</h3><p>As contas aparecem conforme as pessoas criam o acesso neste aparelho.</p></div>`}</div></div>`;
+      box.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+        if (!await UI.confirm({ title: 'Remover acesso', text: 'A pessoa não vai mais conseguir entrar neste aparelho. Ela pode criar o acesso de novo com o código de convite.', danger: true, confirmLabel: 'Remover' })) return;
+        await AUTH.remover(b.dataset.del); UI.toast('Acesso removido.', 'ok'); App.refresh();
+      });
+      return;
+    }
+
+    const { usuarios } = await NUVEM.listarUsuarios();
+    box.innerHTML = `<div class="card"><div class="card__h"><h2>Contas com acesso</h2><span class="muted">${U.fmtNum(usuarios.length)} pessoa(s) · lista do servidor, vale para todos os aparelhos</span></div>
+      <div class="card__b"><div class="rtable-wrap"><table class="ltable"><thead><tr><th>Pessoa</th><th>Entra com</th><th>Cargo</th><th>Criada em</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
+      <tbody>${usuarios.map((u) => `<tr class="${u.ativo ? '' : 'is-dim'}">
+        <td><b>${U.esc(u.nome)}</b>${eu && u.id === eu.id ? ' <span class="mtag is-ok">você</span>' : ''}</td>
+        <td>${U.esc(u.email)}${u.apelido ? `<br><small class="muted">ou <code>${U.esc(u.apelido)}</code></small>` : ''}</td>
+        <td>${eu && u.id === eu.id ? U.esc(CARGOS[u.cargo] || u.cargo) : `<select class="input input--sm" data-cargo="${u.id}">${Object.entries(CARGOS).map(([k, v]) => `<option value="${k}" ${u.cargo === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`}</td>
+        <td>${dia(u.criado_em)}</td>
+        <td>${u.ultimo_acesso ? U.relTime(u.ultimo_acesso) : '<span class="muted">nunca</span>'}</td>
+        <td>${u.ativo ? '<span class="mtag is-ok">Ativa</span>' : '<span class="mtag is-com">Bloqueada</span>'}</td>
+        <td>${eu && u.id === eu.id ? '' : `<button class="btn btn--ghost btn--sm" data-tog="${u.id}" data-ativo="${u.ativo ? 1 : 0}">${u.ativo ? U.icon('lock', 14) + 'Bloquear' : U.icon('check', 14) + 'Liberar'}</button>`}</td>
+      </tr>`).join('')}</tbody></table></div>
+      <p class="hint">Trocar o cargo vale na hora. Bloquear encerra a sessão da pessoa imediatamente, em qualquer aparelho, e os dados que ela cadastrou continuam no sistema.</p></div></div>`;
+
+    box.querySelectorAll('[data-cargo]').forEach((sel) => sel.onchange = async () => {
+      try { await NUVEM.mudarUsuario(sel.dataset.cargo, { cargo: sel.value }); UI.toast('Cargo alterado.', 'ok'); App.refresh(); }
+      catch (e) { UI.toast(e.message || 'Não foi possível alterar.', 'warn'); }
+    });
+    box.querySelectorAll('[data-tog]').forEach((b) => b.onclick = async () => {
+      const ativo = b.dataset.ativo === '1';
+      if (ativo && !await UI.confirm({ title: 'Bloquear acesso', text: 'A pessoa é desconectada na hora e não consegue mais entrar, em nenhum aparelho. Os dados que ela cadastrou continuam no sistema.', danger: true, confirmLabel: 'Bloquear' })) return;
+      try { await NUVEM.mudarUsuario(b.dataset.tog, { ativo: !ativo }); UI.toast(ativo ? 'Acesso bloqueado.' : 'Acesso liberado.', 'ok'); App.refresh(); }
+      catch (e) { UI.toast(e.message || 'Não foi possível alterar.', 'warn'); }
+    });
+  },
+
+  /* ---------------- histórico ---------------- */
+  ROTULO: {
+    login: ['Entrou', 'is-ok'], logout: ['Saiu', ''], login_falhou: ['Entrada recusada', 'is-com'],
+    conta_criada: ['Criou a conta', 'is-ok'], senha_redefinida: ['Redefiniu a senha', 'is-prod'], senha_trocada: ['Trocou a senha', 'is-prod'],
+    gravou: ['Gravou', 'is-ok'], gravou_lote: ['Gravou em lote', 'is-ok'], removeu: ['Removeu', 'is-com'], restaurou: ['Restaurou', 'is-prod'],
+    ajustou: ['Alterou configuração', 'is-prod'], alterou_conta: ['Alterou uma conta', 'is-prod'],
+  },
+  async historico(box) {
+    const { itens } = await NUVEM.historico(300);
+    const R = this.ROTULO;
+    const pessoas = Array.from(new Set(itens.map((i) => i.email).filter(Boolean))).sort();
+    box.innerHTML = `<div class="card"><div class="card__h"><h2>Histórico</h2><span class="muted">Tudo o que foi feito no sistema, por quem e quando</span>
+        <div class="card__a"><select class="input input--sm" data-quem><option value="">Todas as pessoas</option>${pessoas.map((p) => `<option>${U.esc(p)}</option>`).join('')}</select>
+        <button class="btn btn--ghost btn--sm" data-exp>${U.icon('download', 14)}Exportar</button></div></div>
+      <div class="card__b">${itens.length ? `<div class="rtable-wrap"><table class="ltable"><thead><tr><th>Quando</th><th>Pessoa</th><th>Ação</th><th>O que aconteceu</th></tr></thead>
+      <tbody>${itens.map((i) => { const [rot, cls] = R[i.acao] || [i.acao, '']; return `<tr data-email="${U.esc(i.email || '')}">
+        <td><b>${new Date(i.quando).toLocaleString('pt-BR')}</b><br><small class="muted">${U.relTime(i.quando)}</small></td>
+        <td>${i.email ? U.esc(i.email) : '<span class="muted">—</span>'}</td>
+        <td><span class="mtag ${cls}">${U.esc(rot)}</span></td>
+        <td>${U.esc(i.resumo || '')}</td></tr>`; }).join('')}</tbody></table></div>`
+      : `<div class="empty">${U.icon('clock', 26)}<h3>Nada registrado ainda</h3><p>Cada entrada, cadastro, alteração e remoção aparece aqui.</p></div>`}
+      <p class="hint">Mostrando os ${U.fmtNum(itens.length)} eventos mais recentes.</p></div></div>`;
+
+    const sel = box.querySelector('[data-quem]');
+    if (sel) sel.onchange = () => box.querySelectorAll('tbody tr').forEach((tr) => { tr.hidden = !!sel.value && tr.dataset.email !== sel.value; });
+    const exp = box.querySelector('[data-exp]');
+    if (exp) exp.onclick = () => {
+      const cols = [{ label: 'Quando', type: 'text', width: 22 }, { label: 'Pessoa', type: 'text', width: 30 }, { label: 'Ação', type: 'text', width: 24 }, { label: 'O que aconteceu', type: 'text', width: 46 }];
+      const linhas = itens.map((i) => [new Date(i.quando).toLocaleString('pt-BR'), i.email || '', (R[i.acao] || [i.acao])[0], i.resumo || '']);
+      XLSX.download(`historico_${U.today()}.xlsx`, cols, linhas, { sheetName: 'Histórico' });
+      UI.toast('Histórico exportado.', 'ok');
+    };
+  },
+
+  /* ---------------- lixeira ---------------- */
+  async lixeira(box) {
+    const { itens } = await NUVEM.lixeira();
+    const resumo = (d) => Object.entries(d || {}).filter(([, v]) => v !== null && v !== '' && v !== undefined).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(' · ');
+    box.innerHTML = `<div class="card"><div class="card__h"><h2>Lixeira</h2><span class="muted">Nada é apagado de verdade: o que foi removido fica aqui e pode voltar</span></div>
+      <div class="card__b">${itens.length ? `<div class="rtable-wrap"><table class="ltable"><thead><tr><th>Removido em</th><th>Por quem</th><th>Tipo</th><th>Conteúdo</th><th></th></tr></thead>
+      <tbody>${itens.map((i) => `<tr><td><b>${new Date(i.removido_em).toLocaleString('pt-BR')}</b><br><small class="muted">${U.relTime(i.removido_em)}</small></td>
+        <td>${U.esc(i.removido_por_nome || i.removido_por_email || '—')}</td>
+        <td>${U.esc((SCHEMA.ENTITIES[i.entidade] || { singular: i.entidade }).singular)}</td>
+        <td><small>${U.esc(resumo(i.dados) || '(vazio)')}</small></td>
+        <td><button class="btn btn--ghost btn--sm" data-rest="${U.esc(i.id)}">${U.icon('refresh', 14)}Restaurar</button></td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="empty">${U.icon('trash', 26)}<h3>Lixeira vazia</h3><p>Quando alguém remover um registro, ele aparece aqui com o botão de restaurar.</p></div>`}</div></div>`;
+    box.querySelectorAll('[data-rest]').forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      try { await NUVEM.restaurarItem(b.dataset.rest); UI.toast('Registro restaurado.', 'ok'); App.refresh(); }
+      catch (e) { b.disabled = false; UI.toast(e.message || 'Não foi possível restaurar.', 'warn'); }
+    });
+  },
+
+  /* ---------------- convites ---------------- */
+  convites(box, naNuvem) {
     const CODIGOS = [
       { role: 'dev', nome: 'Desenvolvedor', codigo: 'WASH-DEV-4827' },
       { role: 'gestor', nome: 'Gestor 1', codigo: 'WASH-GESTOR-9153' },
@@ -6962,35 +7131,19 @@ Views.usuarios = {
       operador: ['Cadastrar e avançar pedidos', 'Mudar status em Produção e Entregas', 'Consultar catálogos e cargas', 'Fazer backup'],
     };
     const NAO = { dev: [], gestor: ['Personalização', 'Configurações', 'Usuários e cargos'], operador: ['Importar planilhas', 'Definir metas', 'Financeiro', 'Personalização e Configurações'] };
-
-    el.innerHTML = `
-    <div class="callout callout--warn">${U.icon('alert', 16)}<div><b>O login é uma tranca, não um cofre.</b> Como o sistema roda no navegador e o código é público, quem entende de programação consegue contorná-lo. Ele impede que alguém abra o sistema num computador destravado e define o cargo de cada pessoa. A barreira real é o Cloudflare Access, que bloqueia antes da página carregar.</div></div>
-
-    <div class="card"><div class="card__h"><h2>Códigos de convite</h2><span class="muted">Mande o código do cargo para a pessoa. Ela abre o link, digita o código e cria o próprio e-mail e senha.</span></div>
+    box.innerHTML = `<div class="callout callout--warn">${U.icon('alert', 16)}<div><b>O login é uma tranca, não um cofre.</b> Como o sistema roda no navegador e o código é público, quem entende de programação consegue contorná-lo. Ele impede que alguém abra o sistema num computador destravado e define o cargo de cada pessoa. A barreira real é o Cloudflare Access, que bloqueia antes da página carregar.</div></div>
+      <div class="card"><div class="card__h"><h2>Códigos de convite</h2><span class="muted">Mande o código do cargo para a pessoa. Ela abre o link, digita o código e cria o próprio acesso.</span></div>
       <div class="card__b"><div class="rtable-wrap"><table class="ltable"><thead><tr><th>Convite</th><th>Código</th><th>Pode</th><th>Não pode</th><th></th></tr></thead><tbody>
-      ${CODIGOS.map((c) => `<tr>
-        <td><b>${U.esc(c.nome)}</b><br><small class="muted">cargo ${AUTH.ROLES[c.role].label.toLowerCase()} · ${U.esc(AUTH.ROLES[c.role].desc)}</small></td>
+      ${CODIGOS.map((c) => `<tr><td><b>${U.esc(c.nome)}</b><br><small class="muted">cargo ${AUTH.ROLES[c.role].label.toLowerCase()}</small></td>
         <td><code class="codechip">${c.codigo}</code></td>
         <td><ul class="tinylist">${PODE[c.role].map((x) => `<li>${U.esc(x)}</li>`).join('')}</ul></td>
         <td>${NAO[c.role].length ? `<ul class="tinylist tinylist--no">${NAO[c.role].map((x) => `<li>${U.esc(x)}</li>`).join('')}</ul>` : '<span class="muted">—</span>'}</td>
         <td><button class="btn btn--ghost btn--sm" data-copy="${c.codigo}">${U.icon('copy', 14)}Copiar</button></td></tr>`).join('')}
       </tbody></table></div>
-      <p class="hint">Para trocar um código, peça ao desenvolvedor: ele muda no código do sistema e publica uma versão nova.</p></div></div>
-
-    <div class="card"><div class="card__h"><h2>Contas neste aparelho</h2><span class="muted">Cada navegador tem as próprias contas e os próprios dados</span></div>
-      <div class="card__b">${lista.length ? `<div class="rtable-wrap"><table class="ltable"><thead><tr><th>Pessoa</th><th>E-mail</th><th>Cargo</th><th>Convite usado</th><th>Criada em</th><th>Último acesso</th><th></th></tr></thead><tbody>
-      ${lista.map((u) => `<tr><td><b>${U.esc(u.nome || '—')}</b>${AUTH.atual() && u.id === AUTH.atual().id ? ' <span class="mtag is-ok">você</span>' : ''}</td><td>${U.esc(u.email)}</td><td>${U.esc(AUTH.ROLES[u.role] ? AUTH.ROLES[u.role].label : u.role)}</td><td>${u.convite ? U.esc(u.convite) : '<span class="muted">—</span>'}</td><td>${U.fmtDate(new Date(u.criadoEm).toISOString().slice(0,10))}</td><td>${u.ultimoAcesso ? U.relTime(u.ultimoAcesso) : '—'}</td>
-      <td>${AUTH.atual() && u.id === AUTH.atual().id ? '' : `<button class="btn btn--ghost btn--sm" data-del="${u.id}">${U.icon('trash', 14)}Remover</button>`}</td></tr>`).join('')}
-      </tbody></table></div>` : `<div class="empty">${U.icon('clients', 26)}<h3>Nenhuma conta ainda</h3><p>As contas aparecem aqui conforme as pessoas criam o acesso neste aparelho.</p></div>`}
-      <p class="hint">Remover uma conta aqui não apaga os dados do sistema: apaga só o acesso dela neste navegador.</p></div></div>`;
-
-    el.querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => {
+      <p class="hint">${naNuvem ? 'Os códigos vivem no banco: dá para criar e desativar sem publicar versão nova.' : 'Para trocar um código, peça ao desenvolvedor: ele muda no sistema e publica uma versão nova.'}</p></div></div>`;
+    box.querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); UI.toast('Código copiado.', 'ok'); }
       catch (e) { UI.toast('Copie manualmente: ' + b.dataset.copy, 'info'); }
-    });
-    el.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
-      if (!await UI.confirm({ title: 'Remover acesso', text: 'A pessoa não vai mais conseguir entrar neste aparelho. Ela pode criar o acesso de novo com o código de convite.', danger: true, confirmLabel: 'Remover' })) return;
-      await AUTH.remover(b.dataset.del); UI.toast('Acesso removido.', 'ok'); App.refresh();
     });
   },
 };
