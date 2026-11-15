@@ -10,6 +10,7 @@ const ORIGENS = [
   'http://localhost:8788',
   'http://127.0.0.1:8788',
 ];
+/* O runtime da Cloudflare limita o PBKDF2 a 100.000 iterações. */
 const DIAS_SESSAO = 30;
 const MAX_TENTATIVAS = 8;        // por e-mail, em 15 minutos
 const JANELA_TENTATIVAS = 15 * 60 * 1000;
@@ -25,7 +26,7 @@ async function sha256(txt) {
 }
 async function derivar(senha, sal) {
   const k = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveBits']);
-  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(sal), iterations: 150000, hash: 'SHA-256' }, k, 256));
+  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(sal), iterations: 100000, hash: 'SHA-256' }, k, 256));
 }
 const novoSal = () => hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
 const novoToken = () => hex(crypto.getRandomValues(new Uint8Array(32)).buffer);
