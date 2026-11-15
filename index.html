@@ -1656,6 +1656,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 .sb__sync.is-off .sb__dot { background: var(--text-3); }
 .sb__sync.is-err .sb__dot { background: var(--critical); box-shadow: 0 0 0 3px color-mix(in srgb, var(--critical) 22%, transparent); }
 @keyframes syncpulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.78); } }
+.lgopt { display: block; margin-top: 2px; font-style: normal; font-weight: 500; font-size: 10.5px; letter-spacing: 0; color: rgba(233,241,246,.42); }
 
 </style>
 </head>
@@ -1666,7 +1667,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 <div id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:40px;font-family:sans-serif">Ative o JavaScript para utilizar o Dashboard Washington.</p></noscript>
 <script>
-const APP_VERSION = {"v": "2.0.0-teste", "build": "15/11/2026 03:54"};
+const APP_VERSION = {"v": "2.0.1-teste", "build": "15/11/2026 04:17"};
 const API_BASE = 'https://dashboard-washington-api.gabrielcreates.workers.dev';
 /* ---- 00-brand.js ---- */
 /* Logo do desenvolvedor (Gabriel sistemas) */
@@ -3328,8 +3329,8 @@ const AUTH = (() => {
           <div class="lg__body" data-step="${primeira ? 'novo' : 'entrar'}">
 
             <form class="lg__form" data-f="entrar" ${primeira ? 'hidden' : ''} novalidate>
-              <h1>Entrar</h1><p class="lg__sub">Use o e-mail e a senha que você cadastrou neste aparelho.</p>
-              <label class="lgf"><span>E-mail</span><input type="email" name="email" autocomplete="username" required autofocus></label>
+              <h1>Entrar</h1><p class="lg__sub">Entre com o seu e-mail ou o seu nome de usuário.</p>
+              <label class="lgf"><span>E-mail ou nome de usuário</span><input name="email" autocomplete="username" spellcheck="false" required autofocus></label>
               <label class="lgf"><span>Senha</span><span class="lgpw"><input type="password" name="senha" autocomplete="current-password" required><button type="button" class="lgeye" data-eye aria-pressed="false"><span>Mostrar</span></button></span></label>
               <div class="lgrow"><label class="lgchk"><input type="checkbox" name="lembrar" checked><span>Manter conectado por ${DIAS} dias</span></label><button type="button" class="lglink" data-go="recuperar">Esqueci minha senha</button></div>
               <p class="lg__err" hidden></p>
@@ -3339,7 +3340,7 @@ const AUTH = (() => {
 
             <form class="lg__form" data-f="recuperar" hidden novalidate>
               <h1>Redefinir senha</h1><p class="lg__sub">Informe o código de convite do seu cargo. Ele prova que você tem permissão para entrar. Nenhum dado do sistema é apagado.</p>
-              <label class="lgf"><span>E-mail da conta</span><input type="email" name="email" autocomplete="username" required></label>
+              <label class="lgf"><span>E-mail ou nome de usuário</span><input name="email" autocomplete="username" spellcheck="false" required></label>
               <label class="lgf"><span>Código de convite</span><input name="codigo" autocomplete="off" spellcheck="false" placeholder="WASH-XXXX-0000" required></label>
               <label class="lgf"><span>Nova senha</span><span class="lgpw"><input type="password" name="senha" autocomplete="new-password" minlength="6" required><button type="button" class="lgeye" data-eye aria-pressed="false"><span>Mostrar</span></button></span></label>
               <label class="lgf"><span>Repetir a nova senha</span><span class="lgpw"><input type="password" name="senha2" autocomplete="new-password" required><button type="button" class="lgeye" data-eye aria-pressed="false"><span>Mostrar</span></button></span></label>
@@ -3352,7 +3353,8 @@ const AUTH = (() => {
               <h1>Criar seu acesso</h1><p class="lg__sub">Informe o código de convite que o desenvolvedor te passou. Ele define o seu cargo.</p>
               <label class="lgf"><span>Código de convite</span><input name="codigo" autocomplete="off" spellcheck="false" placeholder="WASH-XXXX-0000" required></label>
               <label class="lgf"><span>Seu nome</span><input name="nome" autocomplete="name" required></label>
-              <label class="lgf"><span>E-mail</span><input type="email" name="email" autocomplete="username" required></label>
+              <label class="lgf"><span>E-mail</span><input type="email" name="email" autocomplete="email" required></label>
+              <label class="lgf"><span>Nome de usuário <i class="lgopt">opcional, para entrar sem digitar o e-mail</i></span><input name="apelido" autocomplete="username" spellcheck="false" placeholder="ex.: gabriel"></label>
               <label class="lgf"><span>Criar uma senha</span><span class="lgpw"><input type="password" name="senha" autocomplete="new-password" minlength="6" required><button type="button" class="lgeye" data-eye aria-pressed="false"><span>Mostrar</span></button></span></label>
               <label class="lgf"><span>Repetir a senha</span><span class="lgpw"><input type="password" name="senha2" autocomplete="new-password" required><button type="button" class="lgeye" data-eye aria-pressed="false"><span>Mostrar</span></button></span></label>
               <p class="lg__err" hidden></p>
@@ -3408,12 +3410,12 @@ const AUTH = (() => {
         e.preventDefault(); const f = e.target, d = new FormData(f); carregando(f, true);
         const email = normEmail(d.get('email'));
         if (naNuvem) {
-          try { const u = await NUVEM.entrar(email, String(d.get('senha'))); return entrou({ id: u.id, email: u.email, nome: u.nome, role: u.cargo }, true); }
+          try { const u = await NUVEM.entrar(email, String(d.get('senha'))); return entrou({ id: u.id, email: u.email, apelido: u.apelido, nome: u.nome, role: u.cargo }, true); }
           catch (err) { return erro(f, err.offline ? 'Sem conexão com a base compartilhada. Verifique a internet.' : (err.message || 'Não foi possível entrar.')); }
         }
         const lista = await lerContas();
-        const u = lista.find((x) => x.email === email);
-        if (!u) return erro(f, 'Não existe conta com esse e-mail neste aparelho. Se é seu primeiro acesso, use o código de convite.');
+        const u = lista.find((x) => x.email === email || (x.apelido && x.apelido === email));
+        if (!u) return erro(f, 'Não existe conta com esse e-mail ou nome de usuário neste aparelho. Se é seu primeiro acesso, use o código de convite.');
         const h = await derivar(String(d.get('senha')), u.sal);
         if (h !== u.hash) return erro(f, 'Senha incorreta.');
         u.ultimoAcesso = Date.now();
@@ -3429,12 +3431,12 @@ const AUTH = (() => {
         const email = normEmail(d.get('email'));
         const codigoR = String(d.get('codigo')).trim().toUpperCase().replace(/\s+/g, '');
         if (naNuvem) {
-          try { const u = await NUVEM.redefinir(codigoR, email, senha); return entrou({ id: u.id, email: u.email, nome: u.nome, role: u.cargo }, true); }
+          try { const u = await NUVEM.redefinir(codigoR, email, senha); return entrou({ id: u.id, email: u.email, apelido: u.apelido, nome: u.nome, role: u.cargo }, true); }
           catch (err) { return erro(f, err.offline ? 'Sem conexão com a base compartilhada. Verifique a internet.' : (err.message || 'Não foi possível redefinir.')); }
         }
         const lista = await lerContas();
-        const u = lista.find((x) => x.email === email);
-        if (!u) return erro(f, 'Não existe conta com esse e-mail neste aparelho. Use o código de convite para criar uma.');
+        const u = lista.find((x) => x.email === email || (x.apelido && x.apelido === email));
+        if (!u) return erro(f, 'Não existe conta com esse e-mail ou nome de usuário neste aparelho. Use o código de convite para criar uma.');
         const codigo = codigoR;
         const convite = CODES[await sha256(codigo + PEPPER)];
         if (!convite) return erro(f, 'Código de convite inválido. Peça o código ao desenvolvedor.');
@@ -3451,7 +3453,7 @@ const AUTH = (() => {
         if (senha !== String(d.get('senha2'))) return erro(f, 'As duas senhas não são iguais.');
         const codigo = String(d.get('codigo')).trim().toUpperCase().replace(/\s+/g, '');
         if (naNuvem) {
-          try { const u = await NUVEM.criarConta(codigo, String(d.get('nome')).trim(), normEmail(d.get('email')), senha); return entrou({ id: u.id, email: u.email, nome: u.nome, role: u.cargo }, true); }
+          try { const u = await NUVEM.criarConta(codigo, String(d.get('nome')).trim(), normEmail(d.get('email')), senha, normEmail(d.get('apelido'))); return entrou({ id: u.id, email: u.email, apelido: u.apelido, nome: u.nome, role: u.cargo }, true); }
           catch (err) { return erro(f, err.offline ? 'Sem conexão com a base compartilhada. Verifique a internet.' : (err.message || 'Não foi possível criar o acesso.')); }
         }
         const convite = CODES[await sha256(codigo + PEPPER)];
@@ -3459,10 +3461,13 @@ const AUTH = (() => {
         const role = convite.role;
         const email = normEmail(d.get('email'));
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro(f, 'Informe um e-mail válido.');
+        const apelido = normEmail(d.get('apelido'));
+        if (apelido && !/^[a-z0-9._-]{3,24}$/.test(apelido)) return erro(f, 'O nome de usuário aceita de 3 a 24 caracteres: letras, números, ponto, hífen e sublinhado.');
         const lista = await lerContas();
         if (lista.some((x) => x.email === email)) return erro(f, 'Já existe uma conta com esse e-mail neste aparelho.');
+        if (apelido && lista.some((x) => x.apelido === apelido)) return erro(f, 'Esse nome de usuário já está em uso neste aparelho.');
         const s = sal();
-        const u = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), email, nome: String(d.get('nome')).trim(), role, convite: convite.nome, sal: s, hash: await derivar(senha, s), criadoEm: Date.now(), ultimoAcesso: Date.now() };
+        const u = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), email, apelido: apelido || null, nome: String(d.get('nome')).trim(), role, convite: convite.nome, sal: s, hash: await derivar(senha, s), criadoEm: Date.now(), ultimoAcesso: Date.now() };
         lista.push(u); await gravarContas(lista);
         entrou(u, true);
       };
@@ -3561,15 +3566,15 @@ const NUVEM = (() => {
     return sessao;
   }
   const entrar = async (email, senha) => {
-    sessao = await chamar('/acesso/entrar', { metodo: 'POST', semSessao: true, corpo: { email, senha, agente: navigator.userAgent } });
+    sessao = await chamar('/acesso/entrar', { metodo: 'POST', semSessao: true, corpo: { identificador: email, senha, agente: navigator.userAgent } });
     await guardarSessao(sessao); return sessao.usuario;
   };
-  const criarConta = async (codigo, nome, email, senha) => {
-    sessao = await chamar('/acesso/criar', { metodo: 'POST', semSessao: true, corpo: { codigo, nome, email, senha } });
+  const criarConta = async (codigo, nome, email, senha, apelido) => {
+    sessao = await chamar('/acesso/criar', { metodo: 'POST', semSessao: true, corpo: { codigo, nome, email, apelido: apelido || null, senha } });
     await guardarSessao(sessao); return sessao.usuario;
   };
   const redefinir = async (codigo, email, senha) => {
-    sessao = await chamar('/acesso/redefinir', { metodo: 'POST', semSessao: true, corpo: { codigo, email, senha } });
+    sessao = await chamar('/acesso/redefinir', { metodo: 'POST', semSessao: true, corpo: { codigo, identificador: email, senha } });
     await guardarSessao(sessao); return sessao.usuario;
   };
   async function sair() {
