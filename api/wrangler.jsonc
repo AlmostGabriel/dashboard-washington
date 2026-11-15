@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dashboard-washington-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dashboard-washington",
+      "database_id": "PREENCHER_APOS_CRIAR_O_BANCO"
+    }
+  ]
+}
