@@ -2103,7 +2103,7 @@ const SCHEMA = (() => {
       description: 'Carteira de pedidos com situação comercial, de produção e de entrega.',
       fields: [
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'num pedido', 'numero pedido', 'pedido', 'nr pedido', 'cod pedido', 'pedido n', 'n do pedido', 'numero do pedido', 'pv', 'ov', 'ordem de venda']),
-        F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']),
+        { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']), semForm: true },
         F('data_pedido', 'Data do pedido', 'date', ['data pedido', 'data do pedido', 'emissao pedido', 'data emissao', 'data', 'dt pedido', 'data venda']),
         F('codigo_cliente', 'Código do cliente', 'id', ['cod cliente', 'codigo cliente', 'codigo do cliente', 'id cliente', 'cliente cod']),
         F('cliente', 'Cliente', 'text', ['cliente', 'razao social', 'nome cliente', 'nome do cliente', 'comprador']),
@@ -2130,7 +2130,7 @@ const SCHEMA = (() => {
       description: 'Registros de vendas confirmadas (cada linha representa venda efetivada).',
       fields: [
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'numero pedido', 'pedido', 'nr pedido', 'numero do pedido']),
-        F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia']),
+        { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia']), semForm: true },
         F('data_venda', 'Data da venda', 'date', ['data venda', 'data', 'data da venda', 'emissao', 'data pedido']),
         F('codigo_cliente', 'Código do cliente', 'id', ['cod cliente', 'codigo cliente', 'codigo do cliente']),
         F('cliente', 'Cliente', 'text', ['cliente', 'razao social', 'nome cliente']),
@@ -4620,7 +4620,8 @@ const UI = (() => {
   }
 
   function recordForm(entity, rec, { onSaved, title } = {}) {
-    const fields = SCHEMA.fields(entity);
+    /* semForm: campo que vem das planilhas mas não se digita à mão */
+    const fields = SCHEMA.fields(entity).filter((f) => !f.semForm || (rec && !U.isEmpty(rec.data[f.key])));
     const E = SCHEMA.ENTITIES[entity];
     const isNew = !rec;
     const form = U.h(`<form class="form-grid" autocomplete="off">${fields.map((f) => fieldInput(f, rec ? rec.data[f.key] : (f.key === E.dateField ? U.today() : null))).join('')}</form>`);
