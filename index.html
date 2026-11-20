@@ -29,7 +29,8 @@
   --brand-900: #0B2A3D; --brand-700: #103B54; --brand-600: #0D6678; --accent: #087D91;
   /* superfícies */
   --bg: #F6F8FB; --surface: #FFFFFF; --surface-2: #F0F4F7; --surface-3: #E8EEF3; --surface-hover: #F5F8FA;
-  --text: #172636; --text-2: #687A8C; --text-3: #94A3B3; --text-inv: #F3F7FA;
+  /* contraste conferido no padrão WCAG AA: texto secundário 5.9:1, terciário 4.6:1 */
+  --text: #13202E; --text-2: #556577; --text-3: #70818F; --text-inv: #F3F7FA;
   --border: #E2E8F0; --border-strong: #CFD8E2; --focus: color-mix(in srgb, var(--accent) 45%, transparent);
   /* semânticas */
   --positive: #12866F; --warning: #D99A32; --critical: #D85259; --info: #3F6E96;
@@ -43,7 +44,8 @@
   /* tipografia */
   --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
-  --fs-display: 32px; --fs-h2: 20px; --fs-kpi: 32px; --fs-sub: 15px; --fs-body: 13.5px; --fs-sm: 12.5px; --fs-meta: 11.5px;
+  /* corpo em 15px: o sistema é usado o dia inteiro, por gente que não é de tecnologia */
+  --fs-display: 34px; --fs-h2: 21px; --fs-kpi: 34px; --fs-sub: 16px; --fs-body: 15px; --fs-sm: 13.5px; --fs-meta: 12.5px;
   /* espaçamento (base 4) */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-7: 28px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
   /* raios */
@@ -64,7 +66,7 @@
 [data-theme="dark"] {
   --sb-900: #0A121C; --sb-800: #0F1925; --sb-700: #16232F; --sb-line: rgba(255,255,255,.06);
   --bg: #0C141E; --surface: #121D29; --surface-2: #172431; --surface-3: #1D2B3A; --surface-hover: #182533;
-  --text: #E5ECF3; --text-2: #91A3B5; --text-3: #63778B; --text-inv: #0C141E;
+  --text: #E9EFF5; --text-2: #A3B4C5; --text-3: #7D90A4; --text-inv: #0C141E;
   --border: #213142; --border-strong: #2C4054;
   --positive: #3DBA9A; --warning: #E8B157; --critical: #EE7A80; --info: #7FA9CF;
   --positive-bg: rgba(61,186,154,.12); --warning-bg: rgba(232,177,87,.12); --critical-bg: rgba(238,122,128,.12); --info-bg: rgba(127,169,207,.12);
@@ -98,7 +100,7 @@ mark { background: color-mix(in srgb, var(--warning) 28%, transparent); color: i
 .crit { color: var(--critical); font-weight: 500; }
 .ico { flex: none; display: block; }
 .spacer { flex: 1; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-2) 28%, transparent); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
@@ -139,8 +141,17 @@ body.sb-collapsed .sidebar { width: var(--sb-w-c); }
 .sb__nav::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,.12); }
 .nav__g { margin-top: 14px; }
 .nav__g:first-child { margin-top: 4px; }
-.nav__gt { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #5F7489; white-space: nowrap; overflow: hidden; }
-.nav__i { position: relative; display: flex; align-items: center; gap: 11px; height: 36px; padding: 0 10px; margin: 1px 0; border-radius: 8px; color: #AFC0D0; font-size: 13.5px; font-weight: 500; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+.nav__gt { display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #6B8098; white-space: nowrap; overflow: hidden; border-radius: 6px; text-align: left; transition: color var(--t-fast), background var(--t-fast); }
+.nav__gt:hover { color: #B9C9D8; background: rgba(255,255,255,.04); }
+.nav__gt > span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.nav__gt .ico { flex: none; opacity: .75; transition: transform var(--t) var(--ease); }
+.nav__g.is-off .nav__gt .ico { transform: rotate(-90deg); }
+/* dobrar seções mantém o menu curto para quem só usa dois ou três módulos */
+.nav__gi { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--t-slow) var(--ease); }
+.nav__gw { min-height: 0; }
+.nav__g.is-off .nav__gi { grid-template-rows: 0fr; }
+.nav__g.is-off .nav__gw { overflow: hidden; }
+.nav__i { position: relative; display: flex; align-items: center; gap: 11px; height: 40px; padding: 0 10px; margin: 1px 0; border-radius: 8px; color: #B8C8D7; font-size: 14.5px; font-weight: 500; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
 .nav__i .ico { color: #7C93A9; transition: color var(--t-fast); }
 .nav__i:hover { background: rgba(255,255,255,.05); color: #fff; }
 .nav__i:hover .ico { color: #C9D7E4; }
@@ -193,11 +204,11 @@ body.sb-collapsed .sb__collapse .ico { transform: scaleX(-1); }
 
 /* ===== 06 · COMPONENTES ===== */
 /* Botões */
-.btn { --h: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--h); padding: 0 14px; border-radius: var(--r); font-size: 13px; font-weight: 600; letter-spacing: -.003em; white-space: nowrap; border: 1px solid transparent; transition: background var(--t-fast) var(--ease), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast); user-select: none; }
+.btn { --h: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--h); padding: 0 16px; border-radius: var(--r); font-size: 14px; font-weight: 600; letter-spacing: -.003em; white-space: nowrap; border: 1px solid transparent; transition: background var(--t-fast) var(--ease), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast); user-select: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .5; }
-.btn--sm { --h: 32px; padding: 0 11px; font-size: 12.5px; gap: 6px; }
-.btn--lg { --h: 44px; padding: 0 20px; font-size: 14px; border-radius: 10px; }
+.btn--sm { --h: 34px; padding: 0 12px; font-size: 13px; gap: 6px; }
+.btn--lg { --h: 48px; padding: 0 22px; font-size: 15.5px; border-radius: 10px; }
 .btn--block { width: 100%; }
 .btn--primary { background: var(--accent); color: #fff; box-shadow: 0 1px 2px rgba(16,28,43,.18), inset 0 1px 0 rgba(255,255,255,.12); }
 .btn--primary:hover:not(:disabled) { background: var(--accent-strong); }
@@ -222,15 +233,15 @@ body.sb-collapsed .sb__collapse .ico { transform: scaleX(-1); }
 tr.is-click:hover .linkish { color: var(--accent-fg); }
 
 /* Inputs */
-.input { width: 100%; height: 36px; padding: 0 11px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; transition: border-color var(--t-fast), box-shadow var(--t-fast); outline: none; }
+.input { width: 100%; height: 42px; padding: 0 13px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 15px; transition: border-color var(--t-fast), box-shadow var(--t-fast); outline: none; }
 .input::placeholder { color: var(--text-3); }
 .input:hover { border-color: var(--border-strong); }
 .input:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .input.is-invalid { border-color: var(--critical); box-shadow: 0 0 0 3px var(--critical-bg); }
-.input--sm { height: 32px; font-size: 12.5px; }
-.input--xs { height: 28px; font-size: 12px; padding: 0 8px; border-radius: var(--r-sm); }
+.input--sm { height: 36px; font-size: 13.5px; }
+.input--xs { height: 32px; font-size: 13px; padding: 0 8px; border-radius: var(--r-sm); }
 .input--num { font-variant-numeric: tabular-nums; }
-.input--area { height: auto; padding: 9px 11px; resize: vertical; line-height: 1.5; }
+.input--area { height: auto; padding: 11px 13px; resize: vertical; line-height: 1.5; }
 .input--bare { border: 0; background: transparent; box-shadow: none !important; padding: 0; height: auto; }
 select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687A8C' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
 input[type="date"].input { padding-right: 8px; }
@@ -1181,10 +1192,12 @@ body.sb-collapsed .sb__brandtxt { padding: 0; border: 0; }
 .chk--fixed { opacity: .6; }
 
 /* ===== 13 · MÓDULOS WASHINGTON ===== */
-.filterbar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: var(--s-5); border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--e-1); }
+.filterbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: var(--s-5); border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--e-1); }
 .fsel { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
 .fsel select { min-width: 120px; max-width: 220px; text-transform: none; letter-spacing: 0; font-weight: 500; }
-.filterbar .tb__chip { height: 32px; }
+.filterbar .tb__chip { height: 38px; }
+.filterbar__mais { display: none; width: 100%; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding-top: 12px; margin-top: 2px; border-top: 1px dashed var(--border); }
+.filterbar__mais.is-open { display: flex; }
 .filterbar .link-btn { align-self: center; }
 .legend-row { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--text-2); margin-top: 6px; }
 .legend-row i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
@@ -1725,7 +1738,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 <div id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:40px;font-family:sans-serif">Ative o JavaScript para utilizar o sistema.</p></noscript>
 <script>
-const APP_VERSION = {"v": "2.2.0-teste", "build": "15/11/2026 10:29"};
+const APP_VERSION = {"v": "1.9.0", "build": "20/11/2026 08:06"};
 const API_BASE = 'https://dashboard-washington-api.gabrielcreates.workers.dev';
 /* ---- 00-brand.js ---- */
 /* Logo do desenvolvedor (Gabriel sistemas) */
@@ -2129,6 +2142,8 @@ const SCHEMA = (() => {
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'num pedido', 'numero pedido', 'pedido', 'nr pedido', 'cod pedido', 'pedido n', 'n do pedido', 'numero do pedido', 'pv', 'ov', 'ordem de venda']),
         { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']), semForm: true },
         { ...F('produtos', 'Produtos do pedido', 'text', ['produtos']), semForm: true },
+        { ...F('qtd_poste', 'Qtd. de postes', 'number', ['qtd poste', 'quantidade postes', 'postes']), semForm: true },
+        { ...F('qtd_caixa', 'Qtd. de caixas', 'number', ['qtd caixa', 'quantidade caixas', 'caixas']), semForm: true },
         { ...F('peso_total', 'Peso total (kg)', 'number', ['peso total', 'peso']), semForm: true },
         { ...F('imposto_caixas', 'Imposto das caixas', 'money', ['imposto caixas', 'imposto caixa']), semForm: true },
         F('data_pedido', 'Data do pedido', 'date', ['data pedido', 'data do pedido', 'emissao pedido', 'data emissao', 'data', 'dt pedido', 'data venda']),
@@ -2145,6 +2160,7 @@ const SCHEMA = (() => {
         F('data_prevista_entrega', 'Entrega prevista', 'date', ['previsao entrega', 'data prevista', 'prazo entrega', 'data entrega prevista', 'prazo']),
         F('data_entrega', 'Data de entrega', 'date', ['data entrega', 'entregue em', 'data efetiva entrega']),
         F('responsavel', 'Responsável', 'text', ['vendedor', 'representante', 'responsavel', 'consultor']),
+        F('local_entrega', 'Local de entrega', 'text', ['local entrega', 'local de entrega', 'praca', 'destino', 'regiao entrega']),
         F('regional', 'Regional', 'text', ['regional', 'regiao', 'filial']),
         F('cidade', 'Cidade', 'text', ['cidade', 'municipio']),
         F('uf', 'UF', 'text', ['uf', 'estado']),
@@ -2311,6 +2327,7 @@ const SCHEMA = (() => {
   const STATUS_SETS = {
     comercial: [
       { key: 'cancelado', label: 'Cancelado', tone: 'red', kw: ['cancel', 'estorn', 'desist'] },
+      { key: 'encerrado', label: 'Encerrado (saldo cancelado)', tone: 'gray', kw: ['encerrad', 'saldo cancelad', 'baixa de saldo', 'finalizado parcial'] },
       { key: 'confirmado', label: 'Confirmado', tone: 'green', kw: ['confirm', 'aprovad', 'fechad', 'ganh', 'liberad', 'implantad', 'aceit', 'em carteira', 'carteira', 'ativo', 'vendid', 'faturad', 'entregue', 'concluid'] },
       { key: 'pendente', label: 'Em análise', tone: 'amber', kw: ['pendent', 'analise', 'aguard', 'bloque', 'em aberto', 'aberto', 'negocia'] },
     ],
@@ -4306,10 +4323,81 @@ const W = (() => {
         postes: s('qtd_poste'), caixas: s('qtd_caixa'), acess: s('qtd_acessorios'), bruto: s('valor_faturado'), frete: s('frete_ipi'), semFrete: s('total_sem_frete'), comissao: s('total_comissao'), pedido: d.numero_pedido };
     }).filter((x) => passes(x.d, x.date, f)));
   }
-  /* pedidos em produção (sem NF) */
+  /* ---------- saldo em produção ----------------------------------------
+     Um pedido pode ser entregue em várias notas. A quantidade vendida mora
+     no cabeçalho do pedido; as NFs só somam o que saiu:
+         saldo em produção = quantidade do pedido − soma das NFs
+     O saldo nunca é digitado — se o cliente desiste ou acrescenta itens,
+     basta corrigir a quantidade do pedido. Pedido cancelado ou encerrado
+     não deixa saldo: o que já saiu continua valendo para a meta.
+     Planilhas antigas (linha sem NF) seguem valendo enquanto o pedido não
+     tiver cabeçalho lançado no sistema.
+     -------------------------------------------------------------------- */
+  const SEM_SALDO = ['cancelado', 'encerrado'];
+  /* cabeçalhos de pedido lançados no sistema */
+  function pedidos() {
+    return memo('W:ped', () => Store.active('pedido').map((r) => ({
+      r, d: r.data, key: U.norm(r.data.numero_pedido), date: r.data.data_pedido || null,
+      postes: nz(r.data.qtd_poste), caixas: nz(r.data.qtd_caixa), acess: nz(r.data.qtd_acessorios),
+      encerrado: SEM_SALDO.includes(SCHEMA.classify('comercial', r.data.status_comercial).key),
+    })).filter((p) => p.key));
+  }
+  /* quanto já saiu em NF, por pedido — sem filtro de período: é saldo, não movimento.
+     Varre todas as fontes que carregam nota fiscal (faturamento, produção e
+     entregas) e deduplica por pedido + NF, para a mesma nota não contar duas
+     vezes quando aparece em mais de uma planilha. */
+  const FONTES_NF = ['faturamento', 'comissao', 'producao', 'entrega'];
+  function entregueDe() {
+    return memo('W:entped', () => {
+      const porNF = new Map(); /* "pedido|nf" → soma das linhas daquela nota */
+      for (const ent of FONTES_NF) for (const r of Store.active(ent)) {
+        const d = r.data, k = U.norm(d.numero_pedido), nf = U.norm(d.numero_nf);
+        if (!k || !nf) continue;
+        const kk = k + '|' + nf;
+        let g = porNF.get(kk);
+        if (!g) porNF.set(kk, (g = { ent, pedido: k, postes: 0, caixas: 0, acess: 0 }));
+        else if (g.ent !== ent) continue; /* mesma NF em outra planilha: não soma de novo */
+        g.postes += nz(d.qtd_poste); g.caixas += nz(d.qtd_caixa); g.acess += nz(d.qtd_acessorios);
+      }
+      const m = new Map();
+      for (const g of porNF.values()) {
+        const e = m.get(g.pedido) || { postes: 0, caixas: 0, acess: 0 };
+        e.postes += g.postes; e.caixas += g.caixas; e.acess += g.acess;
+        m.set(g.pedido, e);
+      }
+      return m;
+    });
+  }
+  /* pedidos com saldo a produzir */
   function prod(f = {}) {
-    return memo('W:prod:' + fkey(f), () => Store.active('producao').filter((r) => U.isEmpty(r.data.numero_nf)).map((r) => ({ r, d: r.data, date: r.data.data_pedido || null, cliente: clientName(r.data), regiao: regionOf(r.data), fabrica: r.data.fabrica || 'Não informada', postes: r.data.qtd_poste, caixas: r.data.qtd_caixa, acess: r.data.qtd_acessorios, pedido: r.data.numero_pedido }))
-      .filter((x) => passes(x.d, x.date, f)));
+    return memo('W:prod:' + fkey(f), () => {
+      const ent = entregueDe(), heads = pedidos();
+      const temCabecalho = new Set(heads.map((p) => p.key));
+      const out = [];
+      for (const p of heads) {
+        if (p.encerrado) continue;
+        const e = ent.get(p.key) || { postes: 0, caixas: 0, acess: 0 };
+        const postes = Math.max(0, p.postes - e.postes), caixas = Math.max(0, p.caixas - e.caixas), acess = Math.max(0, p.acess - e.acess);
+        if (!postes && !caixas && !acess) continue;
+        out.push({ r: p.r, d: p.d, date: p.date, cliente: clientName(p.d), regiao: regionOf(p.d), fabrica: p.d.fabrica || 'Não informada', postes, caixas, acess, pedido: p.d.numero_pedido, saldo: true });
+      }
+      for (const r of Store.active('producao')) {
+        if (!U.isEmpty(r.data.numero_nf) || temCabecalho.has(U.norm(r.data.numero_pedido))) continue;
+        out.push({ r, d: r.data, date: r.data.data_pedido || null, cliente: clientName(r.data), regiao: regionOf(r.data), fabrica: r.data.fabrica || 'Não informada', postes: r.data.qtd_poste, caixas: r.data.qtd_caixa, acess: r.data.qtd_acessorios, pedido: r.data.numero_pedido });
+      }
+      return out.filter((x) => passes(x.d, x.date, f));
+    });
+  }
+  /* pedidos cuja soma das NFs passou da quantidade vendida — erro de lançamento */
+  function excedidos() {
+    return memo('W:exc', () => {
+      const ent = entregueDe();
+      return pedidos().map((p) => {
+        const e = ent.get(p.key) || { postes: 0, caixas: 0, acess: 0 };
+        const dp = e.postes - p.postes, dc = e.caixas - p.caixas;
+        return dp > 0 || dc > 0 ? { pedido: p.d.numero_pedido, cliente: clientName(p.d), postes: p.postes, caixas: p.caixas, entPostes: e.postes, entCaixas: e.caixas, excPostes: Math.max(0, dp), excCaixas: Math.max(0, dc), r: p.r } : null;
+      }).filter(Boolean);
+    });
   }
   /* parcelas de comissão (relatórios mensais) com situação */
   function parcels(f = {}) {
@@ -4398,7 +4486,7 @@ const W = (() => {
   /* metas mensais (cadastradas pelo usuário) */
   const metas = () => Store.get('metas') || {};
 
-  return { nfs, prod, parcels, kpis, byMonth, monthsSpan, groupSum, options, metas, regionOf, clientName, refDate, nz, has };
+  return { nfs, prod, pedidos, entregueDe, excedidos, parcels, kpis, byMonth, monthsSpan, groupSum, options, metas, regionOf, clientName, refDate, nz, has };
 })();
 
 /* ---- 06-ui.js ---- */
@@ -6097,6 +6185,33 @@ Views.vendas = {
   },
 };
 
+/* Saldo a produzir: quantidade vendida − soma das NFs. Nunca digitado. */
+function saldoBloco(o) {
+  if (typeof W === 'undefined' || !o.numero) return '';
+  const k = U.norm(o.numero);
+  const h = W.pedidos().find((p) => p.key === k), e = W.entregueDe().get(k) || { postes: 0, caixas: 0 };
+  const linhas = [['Postes', h ? h.postes : null, e.postes], ['Caixas', h ? h.caixas : null, e.caixas]].filter(([, v, ent]) => v || ent);
+  if (!linhas.length) return '';
+  const enc = !!(h && h.encerrado);
+  return `<div class="sub-h">Saldo a produzir</div>
+    <table class="ltable"><thead><tr><th>Produto</th><th class="is-num">Vendido</th><th class="is-num">Entregue (NF)</th><th class="is-num">Saldo</th></tr></thead><tbody>${linhas.map(([lab, v, ent]) => {
+    const exc = v !== null && ent > v, s = v === null ? null : Math.max(0, v - ent);
+    return `<tr><td>${lab}</td><td class="is-num tnum">${v === null ? '<span class="muted">—</span>' : U.fmtNum(v)}</td><td class="is-num tnum">${U.fmtNum(ent)}</td><td class="is-num tnum ${exc ? 'crit' : enc ? '' : s ? 'warnc' : 'okc'}">${v === null ? '<span class="muted">—</span>' : exc ? `excede em ${U.fmtNum(ent - v)}` : enc ? '<span class="muted">encerrado</span>' : U.fmtNum(s)}</td></tr>`;
+  }).join('')}</tbody></table>
+    <p class="hint">${U.esc(h ? (enc ? 'Pedido encerrado: o saldo não entra mais no gap de produção. O que já saiu continua valendo para a meta.'
+    : 'O saldo é calculado. Se o cliente desistir de itens ou acrescentar mais, corrija a quantidade do pedido — o saldo se ajusta sozinho. Para dar baixa no que o cliente desistiu, marque o pedido como Encerrado.')
+    : 'Este pedido veio de planilha e não tem quantidade vendida cadastrada, então o saldo não é calculado. Cadastre o pedido para acompanhar entregas parciais.')}</p>`;
+}
+
+/* Aviso: NFs somam mais que o vendido — quase sempre erro de lançamento */
+function excedidosAviso() {
+  if (typeof W === 'undefined') return '';
+  const ex = W.excedidos();
+  if (!ex.length) return '';
+  const um = ex.length === 1;
+  return `<div class="mnote is-com">${U.icon('info', 16)}<div><b>${um ? 'Um pedido entregue' : `${ex.length} pedidos entregues`} acima do que foi vendido.</b> ${U.esc(um ? 'A soma das notas fiscais passou da quantidade do pedido' : 'Em cada um, a soma das notas fiscais passou da quantidade do pedido')} — normalmente é a quantidade do pedido desatualizada (o cliente acrescentou itens) ou uma NF lançada duas vezes. ${ex.slice(0, 4).map((x) => `<span class="flag">Pedido ${U.esc(x.pedido)}${x.excPostes ? ` · +${U.fmtNum(x.excPostes)} postes` : ''}${x.excCaixas ? ` · +${U.fmtNum(x.excCaixas)} caixas` : ''}</span>`).join(' ')}${ex.length > 4 ? ` <span class="muted">e mais ${ex.length - 4}</span>` : ''}</div></div>`;
+}
+
 /* ---------------- Pedidos ---------------- */
 Views.pedidos = {
   title: 'Pedidos', group: 'Gestão Comercial', tab: 'orders',
@@ -6105,6 +6220,7 @@ Views.pedidos = {
     const O = Calc.opsKPIs();
     el.innerHTML = V.pageHead({ eyebrow: 'Gestão comercial', title: 'Pedidos', subtitle: 'Carteira consolidada por número do pedido, com situação comercial, de produção e de entrega independentes.', actions: `<button class="btn btn--ghost" data-imp>${U.icon('upload', 16)}Importar</button><button class="btn btn--primary" data-new>${U.icon('plus', 16)}Novo pedido</button>` }) +
       V.strip([['Pedidos', U.fmtNum(list.length)], ['Confirmados', U.fmtNum(list.filter((o) => o.confirmed).length)], ['Em análise / sem status', U.fmtNum(list.filter((o) => !o.confirmed && !o.cancelled).length)], ['Cancelados', U.fmtNum(list.filter((o) => o.cancelled).length)], ['Em produção', mv(O.inProd)], ['Entregas pendentes', mv(O.pending)], ['Em atraso', mv(O.late), '', O.late.ok && O.late.value ? 'crit' : '']]) +
+      excedidosAviso() +
       V.tabsBar([['orders', 'Pedidos consolidados', list.length], ['lines', 'Linhas importadas', Store.active('pedido').length]], this.tab) + '<div data-t></div>';
     el.querySelector('[data-new]').onclick = () => UI.recordForm('pedido', null);
     el.querySelector('[data-imp]').onclick = () => Importer.open();
@@ -6130,7 +6246,8 @@ Views.pedidos = {
       subtitle: `${U.esc(o.cliente || 'Cliente não informado')} · ${UI.badge(o.commercial)} ${UI.badge(o.prod)} ${UI.badge(o.delivery.state)}${o.late ? ' <span class="badge badge--red">Atrasada</span>' : ''}`,
       tabs: [
         { id: 'geral', label: 'Visão geral', render: () => `
-          <div class="mstats">${[['Valor comercial', o.value !== null ? U.fmtMoney(o.value) : UI.na()], ['Quantidade', o.qty !== null ? U.fmtNum(o.qty, 2) : '—'], ['Faturado', o.invoiced !== null ? U.fmtMoney(o.invoiced) : '<span class="muted">sem NF</span>'], ['Entregue', o.delivery.qtyDel !== null ? `${U.fmtNum(o.delivery.qtyDel)}${o.delivery.qtyTot !== null ? ' / ' + U.fmtNum(o.delivery.qtyTot) : ''}` : '—']].map(([l, v]) => `<div class="mstat"><span>${l}</span><b class="tnum">${v}</b></div>`).join('')}</div>
+          <div class="mstats">${[['Valor comercial', o.value !== null ? U.fmtMoney(o.value) : UI.na()], ['Quantidade', o.qty !== null ? U.fmtNum(o.qty, 2) : '—'], ['Faturado', o.invoiced !== null ? U.fmtMoney(o.invoiced) : '<span class="muted">sem NF</span>'], ['Entregue', o.delivery.qtyDel !== null ? `${U.fmtNum(o.delivery.qtyDel)}${o.delivery.qtyTot !== null ? ' / ' + U.fmtNum(o.delivery.qtyTot) : ''}` : (saldoBloco(o) ? '<span class="muted">ver saldo abaixo</span>' : '—')]].map(([l, v]) => `<div class="mstat"><span>${l}</span><b class="tnum">${v}</b></div>`).join('')}</div>
+          ${saldoBloco(o)}
           ${kv([['Data do pedido', U.fmtDate(o.date)], ['Cliente', U.esc(o.cliente || '—') + (o.codigo_cliente ? ` <span class="muted">· ${U.esc(o.codigo_cliente)}</span>` : '')], ['Responsável', U.esc(o.responsavel || '—')], ['Regional', U.esc(o.regional || '—')], ['Cidade / UF', U.esc([o.cidade, o.uf].filter(Boolean).join(' / ') || '—')], ['Fábrica', U.esc(o.fabrica || '—')], ['Entrega prevista', U.fmtDate(o.delivery.prevista)], ['Entrega efetiva', U.fmtDate(o.delivery.efetiva)], ['Base da situação de entrega', o.delivery.basis === 'quantidade' ? 'Comparação de quantidades' : o.delivery.basis === 'status' ? 'Status informado' : 'Sem informação'], ['Fonte utilizada', U.esc(o.sourceKey === Store.MANUAL ? 'Cadastro manual' : (Store.getSource(o.sourceKey) || {}).label || '—') + (o.otherGroups.length ? ` <span class="flag">+${o.otherGroups.length} fonte(s) com o mesmo pedido</span>` : '')]])}
           ${editable.length ? `<div class="sub-h">Atualizar situação</div><form class="form-grid" data-f>${['status_comercial', 'status_producao', 'status_entrega', 'data_prevista_entrega', 'responsavel'].map((k) => UI.fieldInput(SCHEMA.field('pedido', k), editable[0].data[k])).join('')}</form>
           ${editable.length > 1 ? `<label class="switch"><input type="checkbox" data-all checked><span class="switch__t"></span><span>Aplicar às ${editable.length} linhas do pedido</span></label>` : ''}
@@ -7391,19 +7508,33 @@ const numFmt = (v) => U.fmtNum(v);
 
 /* ---------- Barra de filtros compartilhada ---------- */
 const WF = { ano: '', mes: '', cliente: '', fabrica: '', regiao: '' };
+const WF_KEYS = ['ano', 'mes', 'cliente', 'fabrica', 'regiao'];
+let wfAberta = false;
 function filterBar() {
   const o = W.options();
   const sel = (k, label, opts) => `<label class="fsel"><span>${label}</span><select class="input input--sm" data-wf="${k}"><option value="">Todos</option>${opts.map(([v, l]) => `<option value="${U.esc(v)}" ${WF[k] === v ? 'selected' : ''}>${U.esc(l)}</option>`).join('')}</select></label>`;
   const meses = U.MESES.map((m, i) => [U.pad(i + 1), ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][i]]);
-  const active = Object.values(WF).some(Boolean);
+  const usados = WF_KEYS.filter((k) => WF[k]).length;
+  /* os cinco filtros ficam guardados: a tela abre limpa e só mostra o período,
+     que é o que quase todo mundo usa. Quem precisa de mais abre em um clique. */
+  const aberta = usados > 0 || wfAberta;
   return `<div class="filterbar">
     <button class="tb__chip ${Store.get('period').preset !== 'all' ? 'is-custom' : ''}" data-wperiod>${U.icon('calendar', 15)}<span>${U.esc(Store.periodLabel())}</span>${U.icon('chevronDown', 14)}</button>
-    ${sel('ano', 'Ano', o.anos.map((a) => [a, a]))}${sel('mes', 'Mês', meses)}${sel('cliente', 'Cliente', o.clientes)}${sel('fabrica', 'Fábrica', o.fabricas)}${sel('regiao', 'Região', o.regioes.map((r) => [r, r]))}
-    ${active ? `<button class="link-btn" data-wclear>${U.icon('x', 13)}Limpar filtros</button>` : ''}</div>`;
+    <button class="tb__chip ${usados ? 'is-custom' : ''}" data-wtoggle aria-expanded="${aberta}">${U.icon('filter', 15)}<span>${usados ? `${usados} filtro${usados > 1 ? 's' : ''}` : 'Filtrar'}</span>${U.icon('chevronDown', 14)}</button>
+    ${usados ? `<button class="link-btn" data-wclear>${U.icon('x', 13)}Limpar</button>` : ''}
+    <div class="filterbar__mais ${aberta ? 'is-open' : ''}">${sel('ano', 'Ano', o.anos.map((a) => [a, a]))}${sel('mes', 'Mês', meses)}${sel('cliente', 'Cliente', o.clientes)}${sel('fabrica', 'Fábrica', o.fabricas)}${sel('regiao', 'Região', o.regioes.map((r) => [r, r]))}</div>
+  </div>`;
 }
 function bindFilterBar(el) {
   el.querySelectorAll('[data-wf]').forEach((s) => s.onchange = () => { WF[s.dataset.wf] = s.value; App.refresh(); });
-  const c = el.querySelector('[data-wclear]'); if (c) c.onclick = () => { Object.keys(WF).forEach((k) => (WF[k] = '')); App.refresh(); };
+  const c = el.querySelector('[data-wclear]'); if (c) c.onclick = () => { WF_KEYS.forEach((k) => (WF[k] = '')); wfAberta = false; App.refresh(); };
+  const t = el.querySelector('[data-wtoggle]');
+  if (t) t.onclick = () => {
+    const caixa = el.querySelector('.filterbar__mais'), abrindo = !caixa.classList.contains('is-open');
+    caixa.classList.toggle('is-open', abrindo);
+    t.setAttribute('aria-expanded', String(abrindo));
+    wfAberta = abrindo;
+  };
   const p = el.querySelector('[data-wperiod]'); if (p) p.onclick = (e) => App.periodMenu(e.currentTarget);
 }
 /* ---------- Coluna "Situação de produção" selecionável em um clique ----------
@@ -8261,7 +8392,8 @@ Views.personalizacao.s_dashboard = function (b) {
 /* =========================================================================
    15b · METAS × RESULTADOS — visão executiva
    Regra do negócio: a meta só é cumprida quando o produto é ENTREGUE.
-     vendido        = entregue (NF) + em produção (pedido sem NF)
+     vendido        = entregue (NF) + em produção (saldo do pedido)
+     saldo do pedido = quantidade vendida − soma das NFs daquele pedido
      gap de produção = vendido − entregue   → está vendido, preso na fábrica
      gap comercial   = meta − vendido       → não foi vendido o suficiente
    Metas são cadastradas por você, por mês, produto (postes/caixas) e região
@@ -8447,7 +8579,7 @@ const METAS = (() => {
       }).join('');
       return `<div class="rtable-wrap"><table class="ltable ltable--meta"><thead><tr><th>Mês</th><th class="is-num">Meta</th><th class="is-num">Vendido</th><th class="is-num">Entregue</th><th class="is-num">%</th><th class="is-num">Gap produção</th><th class="is-num">Gap comercial</th><th class="is-num">Acum.</th><th style="width:120px"></th></tr></thead><tbody>${corpo}</tbody>
         <tfoot><tr><td><b>Ano</b></td><td class="is-num tnum">${accM ? U.fmtNum(accM) : '—'}</td><td class="is-num tnum">${U.fmtNum(U.sum(ls, (x) => x.l.vendido))}</td><td class="is-num tnum"><b>${U.fmtNum(accE)}</b></td><td class="is-num">${accM ? `<span class="${accE >= accM ? 'okc' : 'crit'}">${fpct(accE / accM)}</span>` : '—'}</td><td class="is-num tnum">${U.fmtNum(U.sum(ls, (x) => x.l.gapProd))}</td><td class="is-num tnum">${accM ? U.fmtNum(U.sum(ls, (x) => nz(x.l.gapCom))) : '—'}</td><td></td><td></td></tr></tfoot></table></div>
-        <p class="hint">${U.esc('Entregue = quantidade das notas fiscais no mês da NF/entrega. Vendido = entregue + pedidos da planilha de Produção ainda sem NF, pelo mês do pedido.')}</p>`;
+        <p class="hint">${U.esc('Entregue = quantidade das notas fiscais, no mês da NF. Em produção = saldo do pedido (quantidade vendida − o que já saiu em NF), no mês do pedido. Pedido cancelado ou encerrado não deixa saldo.')}</p>`;
     })()}`;
 
     const m2 = box.querySelector('[data-metas2]'); if (m2) m2.onclick = () => editor();
@@ -9252,7 +9384,14 @@ const App = (() => {
       <div class="sb__brand"><img class="sb__logo sb__logo--solo" src="${BRAND_LOGO}" alt="Gabriel sistemas"></div>
       <nav class="sb__nav">
         ${pinned.length ? `<div class="nav__g"><div class="nav__gt">${U.icon('pin', 12)}<span>Fixados</span></div>${pinned.filter((id) => AUTH.pode(id)).map((id) => item(ALL.find((m) => m.id === id))).join('')}</div>` : ''}
-        ${NAV.map((g) => { const its = g.items.filter((m) => AUTH.pode(m.id)); return its.length ? `<div class="nav__g"><div class="nav__gt"><span>${U.esc(g.group)}</span></div>${its.map(item).join('')}</div>` : ''; }).join('')}
+        ${NAV.map((g) => {
+    const its = g.items.filter((m) => AUTH.pode(m.id));
+    if (!its.length) return '';
+    /* a seção do módulo aberto nunca fica fechada, para o atalho não sumir da vista */
+    const aqui = its.some((m) => m.id === current);
+    const fechado = !aqui && (Store.get('navFechados') || []).includes(g.group);
+    return `<div class="nav__g ${fechado ? 'is-off' : ''}"><button class="nav__gt" data-grupo="${U.esc(g.group)}" aria-expanded="${!fechado}"><span>${U.esc(g.group)}</span>${U.icon('chevronDown', 13)}</button><div class="nav__gi"><div class="nav__gw">${its.map(item).join('')}</div></div></div>`;
+  }).join('')}
       </nav>
       <div class="sb__foot">
         ${AUTH.atual() ? (() => { const pr = profile(); return `<div class="sb__user"><button class="sb__user__me" data-profile data-tip="Meu perfil">${avatar(28)}<div><b>${U.esc(pr.name || AUTH.atual().email)}</b><span>${U.esc(AUTH.papelLabel())}</span></div></button><button class="sb__user__out" data-sair data-tip="Sair do sistema">${U.icon('logout', 15)}</button></div>`; })() : ''}
@@ -9261,6 +9400,14 @@ const App = (() => {
         <div class="sb__actions">${AUTH.pode('configuracoes') ? `<button class="sb__btn" data-nav="configuracoes" data-tip="Configurações">${U.icon('settings', 17)}</button>` : ''}<button class="sb__btn sb__collapse" data-collapse data-tip="${collapsed ? 'Expandir menu' : 'Recolher menu'} (Ctrl+B)">${U.icon('panel', 17)}<span>${collapsed ? '' : 'Recolher'}</span></button></div>
       </div>`;
     sb.querySelectorAll('[data-nav]').forEach((a) => a.onclick = (e) => { e.preventDefault(); go(a.dataset.nav); });
+    sb.querySelectorAll('[data-grupo]').forEach((b) => b.onclick = () => {
+      const g = b.dataset.grupo, caixa = b.closest('.nav__g'), fechando = !caixa.classList.contains('is-off');
+      caixa.classList.toggle('is-off', fechando);
+      b.setAttribute('aria-expanded', String(!fechando));
+      const lista = new Set(Store.get('navFechados') || []);
+      fechando ? lista.add(g) : lista.delete(g);
+      Store.set('navFechados', [...lista]);
+    });
     const meu = sb.querySelector('.sb__user__me');
     if (meu) meu.onclick = (e) => profileMenu(e.currentTarget);
     const sair = sb.querySelector('[data-sair]');
