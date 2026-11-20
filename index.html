@@ -1725,7 +1725,7 @@ body[data-role="operador"] [data-metasexp], body[data-role="gestor"] [data-dange
 <div id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:40px;font-family:sans-serif">Ative o JavaScript para utilizar o sistema.</p></noscript>
 <script>
-const APP_VERSION = {"v": "1.8.0", "build": "15/11/2026 10:29"};
+const APP_VERSION = {"v": "1.9.0", "build": "19/11/2026 22:20"};
 const API_BASE = 'https://dashboard-washington-api.gabrielcreates.workers.dev';
 /* ---- 00-brand.js ---- */
 /* Logo do desenvolvedor (Gabriel sistemas) */
@@ -2129,6 +2129,8 @@ const SCHEMA = (() => {
         F('numero_pedido', 'Número do pedido', 'id', ['n pedido', 'no pedido', 'num pedido', 'numero pedido', 'pedido', 'nr pedido', 'cod pedido', 'pedido n', 'n do pedido', 'numero do pedido', 'pv', 'ov', 'ordem de venda']),
         { ...F('item', 'Item / linha', 'id', ['item', 'seq', 'sequencia', 'linha item', 'id item']), semForm: true },
         { ...F('produtos', 'Produtos do pedido', 'text', ['produtos']), semForm: true },
+        { ...F('qtd_poste', 'Qtd. de postes', 'number', ['qtd poste', 'quantidade postes', 'postes']), semForm: true },
+        { ...F('qtd_caixa', 'Qtd. de caixas', 'number', ['qtd caixa', 'quantidade caixas', 'caixas']), semForm: true },
         { ...F('peso_total', 'Peso total (kg)', 'number', ['peso total', 'peso']), semForm: true },
         { ...F('imposto_caixas', 'Imposto das caixas', 'money', ['imposto caixas', 'imposto caixa']), semForm: true },
         F('data_pedido', 'Data do pedido', 'date', ['data pedido', 'data do pedido', 'emissao pedido', 'data emissao', 'data', 'dt pedido', 'data venda']),
@@ -2145,6 +2147,7 @@ const SCHEMA = (() => {
         F('data_prevista_entrega', 'Entrega prevista', 'date', ['previsao entrega', 'data prevista', 'prazo entrega', 'data entrega prevista', 'prazo']),
         F('data_entrega', 'Data de entrega', 'date', ['data entrega', 'entregue em', 'data efetiva entrega']),
         F('responsavel', 'Responsável', 'text', ['vendedor', 'representante', 'responsavel', 'consultor']),
+        F('local_entrega', 'Local de entrega', 'text', ['local entrega', 'local de entrega', 'praca', 'destino', 'regiao entrega']),
         F('regional', 'Regional', 'text', ['regional', 'regiao', 'filial']),
         F('cidade', 'Cidade', 'text', ['cidade', 'municipio']),
         F('uf', 'UF', 'text', ['uf', 'estado']),
@@ -2311,6 +2314,7 @@ const SCHEMA = (() => {
   const STATUS_SETS = {
     comercial: [
       { key: 'cancelado', label: 'Cancelado', tone: 'red', kw: ['cancel', 'estorn', 'desist'] },
+      { key: 'encerrado', label: 'Encerrado (saldo cancelado)', tone: 'gray', kw: ['encerrad', 'saldo cancelad', 'baixa de saldo', 'finalizado parcial'] },
       { key: 'confirmado', label: 'Confirmado', tone: 'green', kw: ['confirm', 'aprovad', 'fechad', 'ganh', 'liberad', 'implantad', 'aceit', 'em carteira', 'carteira', 'ativo', 'vendid', 'faturad', 'entregue', 'concluid'] },
       { key: 'pendente', label: 'Em análise', tone: 'amber', kw: ['pendent', 'analise', 'aguard', 'bloque', 'em aberto', 'aberto', 'negocia'] },
     ],
@@ -4306,10 +4310,81 @@ const W = (() => {
         postes: s('qtd_poste'), caixas: s('qtd_caixa'), acess: s('qtd_acessorios'), bruto: s('valor_faturado'), frete: s('frete_ipi'), semFrete: s('total_sem_frete'), comissao: s('total_comissao'), pedido: d.numero_pedido };
     }).filter((x) => passes(x.d, x.date, f)));
   }
-  /* pedidos em produção (sem NF) */
+  /* ---------- saldo em produção ----------------------------------------
+     Um pedido pode ser entregue em várias notas. A quantidade vendida mora
+     no cabeçalho do pedido; as NFs só somam o que saiu:
+         saldo em produção = quantidade do pedido − soma das NFs
+     O saldo nunca é digitado — se o cliente desiste ou acrescenta itens,
+     basta corrigir a quantidade do pedido. Pedido cancelado ou encerrado
+     não deixa saldo: o que já saiu continua valendo para a meta.
+     Planilhas antigas (linha sem NF) seguem valendo enquanto o pedido não
+     tiver cabeçalho lançado no sistema.
+     -------------------------------------------------------------------- */
+  const SEM_SALDO = ['cancelado', 'encerrado'];
+  /* cabeçalhos de pedido lançados no sistema */
+  function pedidos() {
+    return memo('W:ped', () => Store.active('pedido').map((r) => ({
+      r, d: r.data, key: U.norm(r.data.numero_pedido), date: r.data.data_pedido || null,
+      postes: nz(r.data.qtd_poste), caixas: nz(r.data.qtd_caixa), acess: nz(r.data.qtd_acessorios),
+      encerrado: SEM_SALDO.includes(SCHEMA.classify('comercial', r.data.status_comercial).key),
+    })).filter((p) => p.key));
+  }
+  /* quanto já saiu em NF, por pedido — sem filtro de período: é saldo, não movimento.
+     Varre todas as fontes que carregam nota fiscal (faturamento, produção e
+     entregas) e deduplica por pedido + NF, para a mesma nota não contar duas
+     vezes quando aparece em mais de uma planilha. */
+  const FONTES_NF = ['faturamento', 'comissao', 'producao', 'entrega'];
+  function entregueDe() {
+    return memo('W:entped', () => {
+      const porNF = new Map(); /* "pedido|nf" → soma das linhas daquela nota */
+      for (const ent of FONTES_NF) for (const r of Store.active(ent)) {
+        const d = r.data, k = U.norm(d.numero_pedido), nf = U.norm(d.numero_nf);
+        if (!k || !nf) continue;
+        const kk = k + '|' + nf;
+        let g = porNF.get(kk);
+        if (!g) porNF.set(kk, (g = { ent, pedido: k, postes: 0, caixas: 0, acess: 0 }));
+        else if (g.ent !== ent) continue; /* mesma NF em outra planilha: não soma de novo */
+        g.postes += nz(d.qtd_poste); g.caixas += nz(d.qtd_caixa); g.acess += nz(d.qtd_acessorios);
+      }
+      const m = new Map();
+      for (const g of porNF.values()) {
+        const e = m.get(g.pedido) || { postes: 0, caixas: 0, acess: 0 };
+        e.postes += g.postes; e.caixas += g.caixas; e.acess += g.acess;
+        m.set(g.pedido, e);
+      }
+      return m;
+    });
+  }
+  /* pedidos com saldo a produzir */
   function prod(f = {}) {
-    return memo('W:prod:' + fkey(f), () => Store.active('producao').filter((r) => U.isEmpty(r.data.numero_nf)).map((r) => ({ r, d: r.data, date: r.data.data_pedido || null, cliente: clientName(r.data), regiao: regionOf(r.data), fabrica: r.data.fabrica || 'Não informada', postes: r.data.qtd_poste, caixas: r.data.qtd_caixa, acess: r.data.qtd_acessorios, pedido: r.data.numero_pedido }))
-      .filter((x) => passes(x.d, x.date, f)));
+    return memo('W:prod:' + fkey(f), () => {
+      const ent = entregueDe(), heads = pedidos();
+      const temCabecalho = new Set(heads.map((p) => p.key));
+      const out = [];
+      for (const p of heads) {
+        if (p.encerrado) continue;
+        const e = ent.get(p.key) || { postes: 0, caixas: 0, acess: 0 };
+        const postes = Math.max(0, p.postes - e.postes), caixas = Math.max(0, p.caixas - e.caixas), acess = Math.max(0, p.acess - e.acess);
+        if (!postes && !caixas && !acess) continue;
+        out.push({ r: p.r, d: p.d, date: p.date, cliente: clientName(p.d), regiao: regionOf(p.d), fabrica: p.d.fabrica || 'Não informada', postes, caixas, acess, pedido: p.d.numero_pedido, saldo: true });
+      }
+      for (const r of Store.active('producao')) {
+        if (!U.isEmpty(r.data.numero_nf) || temCabecalho.has(U.norm(r.data.numero_pedido))) continue;
+        out.push({ r, d: r.data, date: r.data.data_pedido || null, cliente: clientName(r.data), regiao: regionOf(r.data), fabrica: r.data.fabrica || 'Não informada', postes: r.data.qtd_poste, caixas: r.data.qtd_caixa, acess: r.data.qtd_acessorios, pedido: r.data.numero_pedido });
+      }
+      return out.filter((x) => passes(x.d, x.date, f));
+    });
+  }
+  /* pedidos cuja soma das NFs passou da quantidade vendida — erro de lançamento */
+  function excedidos() {
+    return memo('W:exc', () => {
+      const ent = entregueDe();
+      return pedidos().map((p) => {
+        const e = ent.get(p.key) || { postes: 0, caixas: 0, acess: 0 };
+        const dp = e.postes - p.postes, dc = e.caixas - p.caixas;
+        return dp > 0 || dc > 0 ? { pedido: p.d.numero_pedido, cliente: clientName(p.d), postes: p.postes, caixas: p.caixas, entPostes: e.postes, entCaixas: e.caixas, excPostes: Math.max(0, dp), excCaixas: Math.max(0, dc), r: p.r } : null;
+      }).filter(Boolean);
+    });
   }
   /* parcelas de comissão (relatórios mensais) com situação */
   function parcels(f = {}) {
@@ -4398,7 +4473,7 @@ const W = (() => {
   /* metas mensais (cadastradas pelo usuário) */
   const metas = () => Store.get('metas') || {};
 
-  return { nfs, prod, parcels, kpis, byMonth, monthsSpan, groupSum, options, metas, regionOf, clientName, refDate, nz, has };
+  return { nfs, prod, pedidos, entregueDe, excedidos, parcels, kpis, byMonth, monthsSpan, groupSum, options, metas, regionOf, clientName, refDate, nz, has };
 })();
 
 /* ---- 06-ui.js ---- */
@@ -6097,6 +6172,33 @@ Views.vendas = {
   },
 };
 
+/* Saldo a produzir: quantidade vendida − soma das NFs. Nunca digitado. */
+function saldoBloco(o) {
+  if (typeof W === 'undefined' || !o.numero) return '';
+  const k = U.norm(o.numero);
+  const h = W.pedidos().find((p) => p.key === k), e = W.entregueDe().get(k) || { postes: 0, caixas: 0 };
+  const linhas = [['Postes', h ? h.postes : null, e.postes], ['Caixas', h ? h.caixas : null, e.caixas]].filter(([, v, ent]) => v || ent);
+  if (!linhas.length) return '';
+  const enc = !!(h && h.encerrado);
+  return `<div class="sub-h">Saldo a produzir</div>
+    <table class="ltable"><thead><tr><th>Produto</th><th class="is-num">Vendido</th><th class="is-num">Entregue (NF)</th><th class="is-num">Saldo</th></tr></thead><tbody>${linhas.map(([lab, v, ent]) => {
+    const exc = v !== null && ent > v, s = v === null ? null : Math.max(0, v - ent);
+    return `<tr><td>${lab}</td><td class="is-num tnum">${v === null ? '<span class="muted">—</span>' : U.fmtNum(v)}</td><td class="is-num tnum">${U.fmtNum(ent)}</td><td class="is-num tnum ${exc ? 'crit' : enc ? '' : s ? 'warnc' : 'okc'}">${v === null ? '<span class="muted">—</span>' : exc ? `excede em ${U.fmtNum(ent - v)}` : enc ? '<span class="muted">encerrado</span>' : U.fmtNum(s)}</td></tr>`;
+  }).join('')}</tbody></table>
+    <p class="hint">${U.esc(h ? (enc ? 'Pedido encerrado: o saldo não entra mais no gap de produção. O que já saiu continua valendo para a meta.'
+    : 'O saldo é calculado. Se o cliente desistir de itens ou acrescentar mais, corrija a quantidade do pedido — o saldo se ajusta sozinho. Para dar baixa no que o cliente desistiu, marque o pedido como Encerrado.')
+    : 'Este pedido veio de planilha e não tem quantidade vendida cadastrada, então o saldo não é calculado. Cadastre o pedido para acompanhar entregas parciais.')}</p>`;
+}
+
+/* Aviso: NFs somam mais que o vendido — quase sempre erro de lançamento */
+function excedidosAviso() {
+  if (typeof W === 'undefined') return '';
+  const ex = W.excedidos();
+  if (!ex.length) return '';
+  const um = ex.length === 1;
+  return `<div class="mnote is-com">${U.icon('info', 16)}<div><b>${um ? 'Um pedido entregue' : `${ex.length} pedidos entregues`} acima do que foi vendido.</b> ${U.esc(um ? 'A soma das notas fiscais passou da quantidade do pedido' : 'Em cada um, a soma das notas fiscais passou da quantidade do pedido')} — normalmente é a quantidade do pedido desatualizada (o cliente acrescentou itens) ou uma NF lançada duas vezes. ${ex.slice(0, 4).map((x) => `<span class="flag">Pedido ${U.esc(x.pedido)}${x.excPostes ? ` · +${U.fmtNum(x.excPostes)} postes` : ''}${x.excCaixas ? ` · +${U.fmtNum(x.excCaixas)} caixas` : ''}</span>`).join(' ')}${ex.length > 4 ? ` <span class="muted">e mais ${ex.length - 4}</span>` : ''}</div></div>`;
+}
+
 /* ---------------- Pedidos ---------------- */
 Views.pedidos = {
   title: 'Pedidos', group: 'Gestão Comercial', tab: 'orders',
@@ -6105,6 +6207,7 @@ Views.pedidos = {
     const O = Calc.opsKPIs();
     el.innerHTML = V.pageHead({ eyebrow: 'Gestão comercial', title: 'Pedidos', subtitle: 'Carteira consolidada por número do pedido, com situação comercial, de produção e de entrega independentes.', actions: `<button class="btn btn--ghost" data-imp>${U.icon('upload', 16)}Importar</button><button class="btn btn--primary" data-new>${U.icon('plus', 16)}Novo pedido</button>` }) +
       V.strip([['Pedidos', U.fmtNum(list.length)], ['Confirmados', U.fmtNum(list.filter((o) => o.confirmed).length)], ['Em análise / sem status', U.fmtNum(list.filter((o) => !o.confirmed && !o.cancelled).length)], ['Cancelados', U.fmtNum(list.filter((o) => o.cancelled).length)], ['Em produção', mv(O.inProd)], ['Entregas pendentes', mv(O.pending)], ['Em atraso', mv(O.late), '', O.late.ok && O.late.value ? 'crit' : '']]) +
+      excedidosAviso() +
       V.tabsBar([['orders', 'Pedidos consolidados', list.length], ['lines', 'Linhas importadas', Store.active('pedido').length]], this.tab) + '<div data-t></div>';
     el.querySelector('[data-new]').onclick = () => UI.recordForm('pedido', null);
     el.querySelector('[data-imp]').onclick = () => Importer.open();
@@ -6130,7 +6233,8 @@ Views.pedidos = {
       subtitle: `${U.esc(o.cliente || 'Cliente não informado')} · ${UI.badge(o.commercial)} ${UI.badge(o.prod)} ${UI.badge(o.delivery.state)}${o.late ? ' <span class="badge badge--red">Atrasada</span>' : ''}`,
       tabs: [
         { id: 'geral', label: 'Visão geral', render: () => `
-          <div class="mstats">${[['Valor comercial', o.value !== null ? U.fmtMoney(o.value) : UI.na()], ['Quantidade', o.qty !== null ? U.fmtNum(o.qty, 2) : '—'], ['Faturado', o.invoiced !== null ? U.fmtMoney(o.invoiced) : '<span class="muted">sem NF</span>'], ['Entregue', o.delivery.qtyDel !== null ? `${U.fmtNum(o.delivery.qtyDel)}${o.delivery.qtyTot !== null ? ' / ' + U.fmtNum(o.delivery.qtyTot) : ''}` : '—']].map(([l, v]) => `<div class="mstat"><span>${l}</span><b class="tnum">${v}</b></div>`).join('')}</div>
+          <div class="mstats">${[['Valor comercial', o.value !== null ? U.fmtMoney(o.value) : UI.na()], ['Quantidade', o.qty !== null ? U.fmtNum(o.qty, 2) : '—'], ['Faturado', o.invoiced !== null ? U.fmtMoney(o.invoiced) : '<span class="muted">sem NF</span>'], ['Entregue', o.delivery.qtyDel !== null ? `${U.fmtNum(o.delivery.qtyDel)}${o.delivery.qtyTot !== null ? ' / ' + U.fmtNum(o.delivery.qtyTot) : ''}` : (saldoBloco(o) ? '<span class="muted">ver saldo abaixo</span>' : '—')]].map(([l, v]) => `<div class="mstat"><span>${l}</span><b class="tnum">${v}</b></div>`).join('')}</div>
+          ${saldoBloco(o)}
           ${kv([['Data do pedido', U.fmtDate(o.date)], ['Cliente', U.esc(o.cliente || '—') + (o.codigo_cliente ? ` <span class="muted">· ${U.esc(o.codigo_cliente)}</span>` : '')], ['Responsável', U.esc(o.responsavel || '—')], ['Regional', U.esc(o.regional || '—')], ['Cidade / UF', U.esc([o.cidade, o.uf].filter(Boolean).join(' / ') || '—')], ['Fábrica', U.esc(o.fabrica || '—')], ['Entrega prevista', U.fmtDate(o.delivery.prevista)], ['Entrega efetiva', U.fmtDate(o.delivery.efetiva)], ['Base da situação de entrega', o.delivery.basis === 'quantidade' ? 'Comparação de quantidades' : o.delivery.basis === 'status' ? 'Status informado' : 'Sem informação'], ['Fonte utilizada', U.esc(o.sourceKey === Store.MANUAL ? 'Cadastro manual' : (Store.getSource(o.sourceKey) || {}).label || '—') + (o.otherGroups.length ? ` <span class="flag">+${o.otherGroups.length} fonte(s) com o mesmo pedido</span>` : '')]])}
           ${editable.length ? `<div class="sub-h">Atualizar situação</div><form class="form-grid" data-f>${['status_comercial', 'status_producao', 'status_entrega', 'data_prevista_entrega', 'responsavel'].map((k) => UI.fieldInput(SCHEMA.field('pedido', k), editable[0].data[k])).join('')}</form>
           ${editable.length > 1 ? `<label class="switch"><input type="checkbox" data-all checked><span class="switch__t"></span><span>Aplicar às ${editable.length} linhas do pedido</span></label>` : ''}
@@ -8261,7 +8365,8 @@ Views.personalizacao.s_dashboard = function (b) {
 /* =========================================================================
    15b · METAS × RESULTADOS — visão executiva
    Regra do negócio: a meta só é cumprida quando o produto é ENTREGUE.
-     vendido        = entregue (NF) + em produção (pedido sem NF)
+     vendido        = entregue (NF) + em produção (saldo do pedido)
+     saldo do pedido = quantidade vendida − soma das NFs daquele pedido
      gap de produção = vendido − entregue   → está vendido, preso na fábrica
      gap comercial   = meta − vendido       → não foi vendido o suficiente
    Metas são cadastradas por você, por mês, produto (postes/caixas) e região
@@ -8447,7 +8552,7 @@ const METAS = (() => {
       }).join('');
       return `<div class="rtable-wrap"><table class="ltable ltable--meta"><thead><tr><th>Mês</th><th class="is-num">Meta</th><th class="is-num">Vendido</th><th class="is-num">Entregue</th><th class="is-num">%</th><th class="is-num">Gap produção</th><th class="is-num">Gap comercial</th><th class="is-num">Acum.</th><th style="width:120px"></th></tr></thead><tbody>${corpo}</tbody>
         <tfoot><tr><td><b>Ano</b></td><td class="is-num tnum">${accM ? U.fmtNum(accM) : '—'}</td><td class="is-num tnum">${U.fmtNum(U.sum(ls, (x) => x.l.vendido))}</td><td class="is-num tnum"><b>${U.fmtNum(accE)}</b></td><td class="is-num">${accM ? `<span class="${accE >= accM ? 'okc' : 'crit'}">${fpct(accE / accM)}</span>` : '—'}</td><td class="is-num tnum">${U.fmtNum(U.sum(ls, (x) => x.l.gapProd))}</td><td class="is-num tnum">${accM ? U.fmtNum(U.sum(ls, (x) => nz(x.l.gapCom))) : '—'}</td><td></td><td></td></tr></tfoot></table></div>
-        <p class="hint">${U.esc('Entregue = quantidade das notas fiscais no mês da NF/entrega. Vendido = entregue + pedidos da planilha de Produção ainda sem NF, pelo mês do pedido.')}</p>`;
+        <p class="hint">${U.esc('Entregue = quantidade das notas fiscais, no mês da NF. Em produção = saldo do pedido (quantidade vendida − o que já saiu em NF), no mês do pedido. Pedido cancelado ou encerrado não deixa saldo.')}</p>`;
     })()}`;
 
     const m2 = box.querySelector('[data-metas2]'); if (m2) m2.onclick = () => editor();
